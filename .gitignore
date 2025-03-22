@@ -1,0 +1,50 @@
+# Binários compilados
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Arquivos temporários
+tmp/
+temp/
+
+# Arquivos de log
+*.log
+
+# Diretório de builds
+bin/
+build/
+
+# Dependências Go
+vendor/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Configurações específicas do sistema
+.DS_Store
+Thumbs.db
+
+# Frontend
+node_modules/
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+coverage/
+dist/
+build/
+
+# Go Air (hot reload)
+.air.toml
+tmp/
+
+# Go debugging
+__debug_bin
