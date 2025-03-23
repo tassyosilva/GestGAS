@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	_"os"
+	_ "os"
 	"strings"
 	"time"
 
@@ -23,6 +23,32 @@ const (
 	password = "123456"
 	dbname   = "gestgas"
 )
+
+// Middleware CORS para permitir requisições cross-origin
+func corsMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        // Obtenha a origem da requisição
+        origin := r.Header.Get("Origin")
+        
+        // LISTA DE ORIGENS PERMITIDAS
+        allowedOrigins := map[string]bool{
+            "http://localhost:3000": true,
+        }
+        
+        // Verifique se a origem está na lista de permitidas
+        if allowedOrigins[origin] {
+            w.Header().Set("Access-Control-Allow-Origin", origin)
+        }
+        
+        w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+        w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Authorization")
+        if r.Method == "OPTIONS" {
+            w.WriteHeader(http.StatusOK)
+            return
+        }
+        next.ServeHTTP(w, r)
+    })
+}
 
 func main() {
 	// Conectar ao banco de dados PostgreSQL
@@ -93,10 +119,13 @@ func main() {
 		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
 	})))
 	
+	// Aplicar o middleware CORS a todas as rotas
+	corsHandler := corsMiddleware(mux)
+	
 	// Configurar o servidor
 	server := &http.Server{
 		Addr:         ":8080",
-		Handler:      mux,
+		Handler:      corsHandler, // Usar o handler com CORS habilitado
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,

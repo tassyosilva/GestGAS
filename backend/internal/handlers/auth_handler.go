@@ -4,14 +4,23 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/tassyosilva/GestGAS/internal/auth"
-	"github.com/tassyosilva/GestGAS/internal/models"
 )
 
 // LoginHandler processa requisições de login
 func LoginHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Configurar cabeçalhos CORS para esta resposta específica
+		w.Header().Set("Content-Type", "application/json")
+		
+		// Verificar se é uma requisição OPTIONS (preflight)
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		
 		// Verificar se é uma requisição POST
 		if r.Method != http.MethodPost {
 			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
@@ -19,7 +28,11 @@ func LoginHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Decodificar o corpo da requisição
-		var req models.LoginRequest
+		var req struct {
+			Login string `json:"login"`
+			Senha string `json:"senha"`
+		}
+		
 		decoder := json.NewDecoder(r.Body)
 		if err := decoder.Decode(&req); err != nil {
 			http.Error(w, "Erro ao decodificar requisição", http.StatusBadRequest)
@@ -33,7 +46,14 @@ func LoginHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Buscar usuário pelo login
-		var usuario models.Usuario
+		var usuario struct {
+			ID     int    `json:"id"`
+			Nome   string `json:"nome"`
+			Login  string `json:"login"`
+			Senha  string `json:"senha"`
+			Perfil string `json:"perfil"`
+		}
+		
 		err := db.QueryRow(
 			"SELECT id, nome, login, senha, perfil FROM usuarios WHERE login = $1",
 			req.Login,
@@ -48,7 +68,7 @@ func LoginHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		// Verificar senha
+		// Verificar senha usando bcrypt
 		if !auth.VerificarSenha(req.Senha, usuario.Senha) {
 			http.Error(w, "Credenciais inválidas", http.StatusUnauthorized)
 			return
@@ -72,16 +92,23 @@ func LoginHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Criar resposta
-		resp := models.LoginResponse{
+		resp := struct {
+			ID     int       `json:"id"`
+			Nome   string    `json:"nome"`
+			Login  string    `json:"login"`
+			Perfil string    `json:"perfil"`
+			Token  string    `json:"token"`
+			Expira time.Time `json:"expira"`
+		}{
 			ID:     usuario.ID,
 			Nome:   usuario.Nome,
 			Login:  usuario.Login,
 			Perfil: usuario.Perfil,
 			Token:  token,
+			Expira: time.Now().Add(24 * time.Hour),
 		}
 
-		// Configurar cabeçalhos e enviar resposta
-		w.Header().Set("Content-Type", "application/json")
+		// Enviar resposta
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(resp)
 	}

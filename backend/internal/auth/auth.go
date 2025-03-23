@@ -24,7 +24,7 @@ func VerificarSenha(senha, hashArmazenado string) bool {
 	return err == nil
 }
 
-// GerarToken gera um token básico de autenticação
+// GerarToken gera um token para autenticação
 func GerarToken(userID int) (string, error) {
 	// Gerar bytes aleatórios para o token
 	b := make([]byte, 32)
