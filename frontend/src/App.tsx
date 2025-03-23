@@ -1,14 +1,23 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import theme from './theme/theme.ts';
+import theme from './theme/theme';
+
+// Layout
+import Layout from './components/layout/Layout';
 
 // Páginas
-import Login from './pages/Login.tsx';
-import Dashboard from './pages/Dashboard.tsx';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Produtos from './pages/Produtos';
+import Pedidos from './pages/Pedidos';
+import Clientes from './pages/Clientes';
+import Entregadores from './pages/Entregadores';
+import Relatorios from './pages/Relatorios';
+import Configuracoes from './pages/Configuracoes';
 
 // Componentes de autenticação
-import PrivateRoute from './components/auth/PrivateRoute.tsx';
+import PrivateRoute from './components/auth/PrivateRoute';
 
 function App() {
   return (
@@ -21,8 +30,15 @@ function App() {
 
           {/* Rotas protegidas */}
           <Route element={<PrivateRoute />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            {/* Adicionar mais rotas protegidas aqui */}
+            <Route element={<Layout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/produtos" element={<Produtos />} />
+              <Route path="/pedidos" element={<Pedidos />} />
+              <Route path="/clientes" element={<Clientes />} />
+              <Route path="/entregadores" element={<Entregadores />} />
+              <Route path="/relatorios" element={<Relatorios />} />
+              <Route path="/configuracoes" element={<Configuracoes />} />
+            </Route>
           </Route>
 
           {/* Redirecionamento para o Dashboard se autenticado ou Login se não */}
