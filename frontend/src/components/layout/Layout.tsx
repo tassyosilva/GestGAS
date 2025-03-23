@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import {
-    Box,
     AppBar,
+    Box,
+    CssBaseline,
+    Drawer,
+    IconButton,
     Toolbar,
     Typography,
-    IconButton,
     Button,
-    useMediaQuery,
-    useTheme,
 } from '@mui/material';
 import {
     Menu as MenuIcon,
@@ -21,21 +21,14 @@ import { authService } from '../../services/authService';
 const drawerWidth = 240;
 
 const Layout = () => {
-    // No mobile, começamos com a sidebar fechada
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-    const [open, setOpen] = useState(!isMobile);
-
+    const [mobileOpen, setMobileOpen] = useState(false);
     const navigate = useNavigate();
 
     // Obter dados do usuário logado
     const user = authService.getUser();
 
-    // Alternar o estado da barra lateral (apenas para mobile)
-    const toggleDrawer = () => {
-        if (isMobile) {
-            setOpen(!open);
-        }
+    const handleDrawerToggle = () => {
+        setMobileOpen(!mobileOpen);
     };
 
     // Lidar com o logout
@@ -45,7 +38,9 @@ const Layout = () => {
     };
 
     return (
-        <Box sx={{ display: 'flex', height: '100vh' }}>
+        <Box sx={{ display: 'flex' }}>
+            <CssBaseline />
+
             {/* Barra superior */}
             <AppBar
                 position="fixed"
@@ -56,17 +51,15 @@ const Layout = () => {
                 }}
             >
                 <Toolbar>
-                    {isMobile && (
-                        <IconButton
-                            color="inherit"
-                            aria-label="open drawer"
-                            onClick={toggleDrawer}
-                            edge="start"
-                            sx={{ mr: 2 }}
-                        >
-                            <MenuIcon />
-                        </IconButton>
-                    )}
+                    <IconButton
+                        color="inherit"
+                        aria-label="open drawer"
+                        edge="start"
+                        onClick={handleDrawerToggle}
+                        sx={{ mr: 2, display: { md: 'none' } }}
+                    >
+                        <MenuIcon />
+                    </IconButton>
 
                     <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
                         Sistema de Gerenciamento para Revendedora de Gás e Água
@@ -88,8 +81,43 @@ const Layout = () => {
                 </Toolbar>
             </AppBar>
 
-            {/* Barra lateral */}
-            <Sidebar open={open} onToggle={toggleDrawer} />
+            {/* Menu lateral */}
+            <Box
+                component="nav"
+                sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+            >
+                {/* Mobile drawer */}
+                <Drawer
+                    variant="temporary"
+                    open={mobileOpen}
+                    onClose={handleDrawerToggle}
+                    ModalProps={{
+                        keepMounted: true, // Melhor desempenho em dispositivos móveis
+                    }}
+                    sx={{
+                        display: { xs: 'block', md: 'none' },
+                        '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+                    }}
+                >
+                    <Sidebar open={true} onToggle={handleDrawerToggle} />
+                </Drawer>
+
+                {/* Desktop drawer */}
+                <Drawer
+                    variant="permanent"
+                    sx={{
+                        display: { xs: 'none', md: 'block' },
+                        '& .MuiDrawer-paper': {
+                            boxSizing: 'border-box',
+                            width: drawerWidth,
+                            borderRight: '1px solid rgba(0, 0, 0, 0.12)',
+                        },
+                    }}
+                    open
+                >
+                    <Sidebar open={true} onToggle={handleDrawerToggle} />
+                </Drawer>
+            </Box>
 
             {/* Conteúdo principal */}
             <Box
@@ -98,11 +126,10 @@ const Layout = () => {
                     flexGrow: 1,
                     p: 3,
                     width: { md: `calc(100% - ${drawerWidth}px)` },
-                    ml: { md: `${drawerWidth}px` },
-                    mt: '64px', // Altura da barra superior
-                    overflow: 'auto',
+                    backgroundColor: 'background.default'
                 }}
             >
+                <Toolbar /> {/* Espaço para a barra de ferramentas */}
                 <Outlet />
             </Box>
         </Box>
