@@ -207,12 +207,12 @@ func ObterEstoqueItemHandler(db *sql.DB) http.HandlerFunc {
 		defer rows.Close()
 
 		type Movimentacao struct {
-			ID          int                  `json:"id"`
-			Tipo        models.TipoMovimentacao `json:"tipo"`
-			Quantidade  int                  `json:"quantidade"`
-			Observacoes string               `json:"observacoes,omitempty"`
-			CriadoEm    string               `json:"criado_em"`
-			Usuario     string               `json:"usuario"`
+			ID          int                      `json:"id"`
+			Tipo        models.TipoMovimentacao  `json:"tipo"`
+			Quantidade  int                      `json:"quantidade"`
+			Observacoes string                   `json:"observacoes,omitempty"`
+			CriadoEm    string                   `json:"criado_em"`
+			Usuario     string                   `json:"usuario"`
 		}
 
 		var movimentacoes []Movimentacao
@@ -238,10 +238,10 @@ func ObterEstoqueItemHandler(db *sql.DB) http.HandlerFunc {
 
 		// Montar resposta
 		response := struct {
-			Estoque      models.EstoqueResponse `json:"estoque"`
-			Movimentacoes []Movimentacao       `json:"movimentacoes"`
+			Estoque       models.EstoqueResponse `json:"estoque"`
+			Movimentacoes []Movimentacao        `json:"movimentacoes"`
 		}{
-			Estoque:      e,
+			Estoque:       e,
 			Movimentacoes: movimentacoes,
 		}
 
@@ -319,7 +319,8 @@ func AtualizarEstoqueHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Verificar permissões (apenas gerentes ou admins podem atualizar estoque manualmente)
-		if !middleware.VerificarPerfil(db, userID, "gerente") {
+		perfil, perfilOk := middleware.ObterPerfilUsuario(r)
+		if !perfilOk || !middleware.VerificarPerfil(perfil, "gerente") {
 			http.Error(w, "Sem permissão para atualizar estoque", http.StatusForbidden)
 			return
 		}
@@ -543,14 +544,15 @@ func AtualizarEstoqueHandler(db *sql.DB) http.HandlerFunc {
 func AtualizarAlertaMinimoHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Verificar se o usuário está autenticado
-		userID, ok := middleware.ObterUsuarioID(r)
+		_, ok := middleware.ObterUsuarioID(r)
 		if !ok {
 			http.Error(w, "Usuário não autenticado", http.StatusUnauthorized)
 			return
 		}
 
 		// Verificar permissões (apenas gerentes ou admins podem atualizar alerta mínimo)
-		if !middleware.VerificarPerfil(db, userID, "gerente") {
+		perfil, perfilOk := middleware.ObterPerfilUsuario(r)
+		if !perfilOk || !middleware.VerificarPerfil(perfil, "gerente") {
 			http.Error(w, "Sem permissão para atualizar alerta mínimo", http.StatusForbidden)
 			return
 		}
@@ -671,7 +673,8 @@ func EmprestimoBotijasHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Verificar permissões (apenas atendentes ou acima podem registrar empréstimos)
-		if !middleware.VerificarPerfil(db, userID, "atendente") {
+		perfil, perfilOk := middleware.ObterPerfilUsuario(r)
+		if !perfilOk || !middleware.VerificarPerfil(perfil, "atendente") {
 			http.Error(w, "Sem permissão para registrar empréstimo", http.StatusForbidden)
 			return
 		}
@@ -802,7 +805,7 @@ func EmprestimoBotijasHandler(db *sql.DB) http.HandlerFunc {
 
 		// Montar resposta
 		response := struct {
-			Mensagem string               `json:"mensagem"`
+			Mensagem string                `json:"mensagem"`
 			Estoque  models.EstoqueResponse `json:"estoque"`
 		}{
 			Mensagem: fmt.Sprintf("Empréstimo de %d botijas vazias de %s registrado com sucesso", req.Quantidade, e.NomeProduto),
@@ -826,7 +829,8 @@ func DevolucaoBotijasEmprestimoHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Verificar permissões (apenas atendentes ou acima podem registrar devoluções)
-		if !middleware.VerificarPerfil(db, userID, "atendente") {
+		perfil, perfilOk := middleware.ObterPerfilUsuario(r)
+		if !perfilOk || !middleware.VerificarPerfil(perfil, "atendente") {
 			http.Error(w, "Sem permissão para registrar devolução", http.StatusForbidden)
 			return
 		}
@@ -957,7 +961,7 @@ func DevolucaoBotijasEmprestimoHandler(db *sql.DB) http.HandlerFunc {
 
 		// Montar resposta
 		response := struct {
-			Mensagem string               `json:"mensagem"`
+			Mensagem string                `json:"mensagem"`
 			Estoque  models.EstoqueResponse `json:"estoque"`
 		}{
 			Mensagem: fmt.Sprintf("Devolução de %d botijas emprestadas de %s registrada com sucesso", req.Quantidade, e.NomeProduto),

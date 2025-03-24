@@ -214,20 +214,6 @@ func inicializarBancoDados(db *sql.DB) error {
 		return fmt.Errorf("erro ao criar tabela de usuários: %w", err)
 	}
 	
-	// Criar tabela de tokens
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS tokens (
-			id SERIAL PRIMARY KEY,
-			usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
-			token VARCHAR(255) UNIQUE NOT NULL,
-			expiracao TIMESTAMP WITH TIME ZONE NOT NULL,
-			criado_em TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-		)
-	`)
-	if err != nil {
-		return fmt.Errorf("erro ao criar tabela de tokens: %w", err)
-	}
-	
 	// Criar tabela de produtos
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS produtos (

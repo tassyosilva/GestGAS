@@ -280,7 +280,8 @@ func CriarPedidoHandler(db *sql.DB) http.HandlerFunc {
 
 		// Verificar permissões (apenas atendentes ou admins podem criar pedidos)
 		fmt.Println("Verificando permissões do usuário ID:", userID)
-		if !middleware.VerificarPerfil(db, userID, "atendente") {
+		perfil, perfilOk := middleware.ObterPerfilUsuario(r)
+		if !perfilOk || !middleware.VerificarPerfil(perfil, "atendente") {
 			fmt.Println("ERRO: Usuário sem permissão, ID:", userID)
 			http.Error(w, "Sem permissão para criar pedidos", http.StatusForbidden)
 			return
@@ -521,6 +522,15 @@ func AtualizarStatusPedidoHandler(db *sql.DB) http.HandlerFunc {
 		}
 		fmt.Println("Usuário autenticado com sucesso, ID:", userID)
 
+		// Obter perfil do usuário para verificações de permissão
+		perfil, perfilOk := middleware.ObterPerfilUsuario(r)
+		if !perfilOk {
+			fmt.Println("ERRO: Não foi possível obter o perfil do usuário")
+			http.Error(w, "Erro ao verificar permissões", http.StatusInternalServerError)
+			return
+		}
+		fmt.Println("Perfil do usuário:", perfil)
+
 		// Configurar cabeçalhos
 		w.Header().Set("Content-Type", "application/json")
 
@@ -595,7 +605,7 @@ func AtualizarStatusPedidoHandler(db *sql.DB) http.HandlerFunc {
 		switch req.Status {
 		case models.StatusCancelado, models.StatusEmPreparo:
 			// Atendentes e acima podem cancelar ou preparar pedidos
-			if !middleware.VerificarPerfil(db, userID, "atendente") {
+			if !middleware.VerificarPerfil(perfil, "atendente") {
 				fmt.Println("ERRO: Usuário sem permissão para esta atualização, ID:", userID)
 				http.Error(w, "Sem permissão para esta atualização", http.StatusForbidden)
 				return
@@ -612,7 +622,7 @@ func AtualizarStatusPedidoHandler(db *sql.DB) http.HandlerFunc {
 
 		// Iniciar transação
 		fmt.Println("Iniciando transação no banco de dados")
-		tx, err := db.Begin()
+		tx,err := db.Begin()
 		if err != nil {
 			fmt.Println("ERRO ao iniciar transação:", err)
 			http.Error(w, "Erro ao iniciar transação: "+err.Error(), http.StatusInternalServerError)

@@ -131,14 +131,15 @@ func CriarProdutoHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Verificar permissão do usuário
-		userID, ok := middleware.ObterUsuarioID(r)
+		_, ok := middleware.ObterUsuarioID(r)
 		if !ok {
 			http.Error(w, "Usuário não autenticado", http.StatusUnauthorized)
 			return
 		}
 
 		// Verificar se o usuário tem permissão para criar produtos
-		if !middleware.VerificarPerfil(db, userID, "gerente") {
+		perfil, perfilOk := middleware.ObterPerfilUsuario(r)
+		if !perfilOk || !middleware.VerificarPerfil(perfil, "gerente") {
 			http.Error(w, "Permissão negada", http.StatusForbidden)
 			return
 		}
@@ -223,14 +224,15 @@ func AtualizarProdutoHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Verificar permissão do usuário
-		userID, ok := middleware.ObterUsuarioID(r)
+		_, ok := middleware.ObterUsuarioID(r)
 		if !ok {
 			http.Error(w, "Usuário não autenticado", http.StatusUnauthorized)
 			return
 		}
 
 		// Verificar se o usuário tem permissão para atualizar produtos
-		if !middleware.VerificarPerfil(db, userID, "gerente") {
+		perfil, perfilOk := middleware.ObterPerfilUsuario(r)
+		if !perfilOk || !middleware.VerificarPerfil(perfil, "gerente") {
 			http.Error(w, "Permissão negada", http.StatusForbidden)
 			return
 		}
@@ -332,14 +334,15 @@ func ExcluirProdutoHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Verificar permissão do usuário
-		userID, ok := middleware.ObterUsuarioID(r)
+		_, ok := middleware.ObterUsuarioID(r)
 		if !ok {
 			http.Error(w, "Usuário não autenticado", http.StatusUnauthorized)
 			return
 		}
 
 		// Apenas administradores podem excluir produtos
-		if !middleware.VerificarPerfil(db, userID, "admin") {
+		perfil, perfilOk := middleware.ObterPerfilUsuario(r)
+		if !perfilOk || !middleware.VerificarPerfil(perfil, "admin") {
 			http.Error(w, "Permissão negada", http.StatusForbidden)
 			return
 		}

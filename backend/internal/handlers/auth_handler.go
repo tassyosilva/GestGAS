@@ -26,7 +26,7 @@ func LoginHandler(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
 			return
 		}
-
+		
 		// Decodificar o corpo da requisição
 		var req struct {
 			Login string `json:"login"`
@@ -38,13 +38,13 @@ func LoginHandler(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "Erro ao decodificar requisição", http.StatusBadRequest)
 			return
 		}
-
+		
 		// Verificar se os campos obrigatórios estão presentes
 		if req.Login == "" || req.Senha == "" {
 			http.Error(w, "Login e senha são obrigatórios", http.StatusBadRequest)
 			return
 		}
-
+		
 		// Buscar usuário pelo login
 		var usuario struct {
 			ID     int    `json:"id"`
@@ -58,7 +58,7 @@ func LoginHandler(db *sql.DB) http.HandlerFunc {
 			"SELECT id, nome, login, senha, perfil FROM usuarios WHERE login = $1",
 			req.Login,
 		).Scan(&usuario.ID, &usuario.Nome, &usuario.Login, &usuario.Senha, &usuario.Perfil)
-
+		
 		if err != nil {
 			if err == sql.ErrNoRows {
 				http.Error(w, "Credenciais inválidas", http.StatusUnauthorized)
@@ -67,30 +67,20 @@ func LoginHandler(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "Erro ao buscar usuário", http.StatusInternalServerError)
 			return
 		}
-
+		
 		// Verificar senha usando bcrypt
 		if !auth.VerificarSenha(req.Senha, usuario.Senha) {
 			http.Error(w, "Credenciais inválidas", http.StatusUnauthorized)
 			return
 		}
-
-		// Gerar token
-		token, err := auth.GerarToken(usuario.ID)
+		
+		// Gerar token JWT incluindo o ID e o perfil do usuário
+		token, err := auth.GerarToken(usuario.ID, usuario.Perfil)
 		if err != nil {
 			http.Error(w, "Erro ao gerar token", http.StatusInternalServerError)
 			return
 		}
 		
-		// Armazenar token no banco de dados (expira em 24 horas)
-		_, err = db.Exec(
-			"INSERT INTO tokens (usuario_id, token, expiracao) VALUES ($1, $2, NOW() + INTERVAL '24 hours')",
-			usuario.ID, token,
-		)
-		if err != nil {
-			http.Error(w, "Erro ao armazenar token", http.StatusInternalServerError)
-			return
-		}
-
 		// Criar resposta
 		resp := struct {
 			ID     int       `json:"id"`
@@ -105,9 +95,9 @@ func LoginHandler(db *sql.DB) http.HandlerFunc {
 			Login:  usuario.Login,
 			Perfil: usuario.Perfil,
 			Token:  token,
-			Expira: time.Now().Add(24 * time.Hour),
+			Expira: time.Now().Add(24 * time.Hour), // Token expira em 24 horas
 		}
-
+		
 		// Enviar resposta
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(resp)
