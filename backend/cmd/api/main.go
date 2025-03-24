@@ -118,6 +118,56 @@ func main() {
 		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
 	})))
 	
+	// Rotas para clientes - MODIFICADO PARA CORRIGIR ERRO 405
+	mux.Handle("/api/clientes", middleware.AuthMiddleware(db)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verificar se é método GET para listar ou POST para criar
+		if r.Method == http.MethodGet {
+			handlers.ListarClientesHandler(db)(w, r)
+			return
+		} else if r.Method == http.MethodPost {
+			handlers.CriarClienteHandler(db)(w, r)
+			return
+		}
+		
+		// Se não for nenhum dos casos acima, método não permitido
+		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+	})))
+	
+	mux.Handle("/api/clientes/buscar", middleware.AuthMiddleware(db)(http.HandlerFunc(handlers.BuscarClientePorTelefoneHandler(db))))
+	mux.Handle("/api/clientes/", middleware.AuthMiddleware(db)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		segments := strings.Split(path, "/")
+		
+		// Verificar se é uma requisição para um cliente específico
+		if len(segments) >= 4 && segments[3] != "" {
+			// Verificar se é uma atualização de endereço
+			if len(segments) >= 5 && segments[4] == "endereco" {
+				if r.Method == http.MethodPut || r.Method == http.MethodPatch {
+					handlers.AtualizarClienteHandler(db)(w, r)
+					return
+				}
+				http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+				return
+			}
+			
+			// Operações padrão
+			switch r.Method {
+			case http.MethodGet:
+				handlers.ObterClienteHandler(db)(w, r)
+			case http.MethodPut, http.MethodPatch:
+				handlers.AtualizarClienteHandler(db)(w, r)
+			case http.MethodDelete:
+				handlers.ExcluirClienteHandler(db)(w, r)
+			default:
+				http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+			}
+			return
+		}
+		
+		// Se não for nenhum dos casos acima, método não permitido
+		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+	})))
+	
 	// NOVAS ROTAS PARA PEDIDOS
 	mux.Handle("/api/pedidos", middleware.AuthMiddleware(db)(http.HandlerFunc(handlers.ListarPedidosHandler(db))))
 	mux.Handle("/api/pedidos/", middleware.AuthMiddleware(db)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
