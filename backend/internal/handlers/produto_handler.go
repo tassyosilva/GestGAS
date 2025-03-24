@@ -163,8 +163,15 @@ func CriarProdutoHandler(db *sql.DB) http.HandlerFunc {
 		produto.CriadoEm = now
 		produto.AtualizadoEm = now
 
-		// Inserir produto no banco de dados
-		err := db.QueryRow(
+		// Iniciar uma transação para garantir que tanto o produto quanto o estoque sejam criados
+		tx, err := db.Begin()
+		if err != nil {
+			http.Error(w, "Erro ao iniciar transação", http.StatusInternalServerError)
+			return
+		}
+
+		// Inserir produto no banco de dados dentro da transação
+		err = tx.QueryRow(
 			`INSERT INTO produtos (nome, descricao, categoria, preco, criado_em, atualizado_em) 
              VALUES ($1, $2, $3, $4, $5, $6) 
              RETURNING id`,
@@ -177,19 +184,27 @@ func CriarProdutoHandler(db *sql.DB) http.HandlerFunc {
 		).Scan(&produto.ID)
 
 		if err != nil {
+			tx.Rollback()
 			http.Error(w, "Erro ao criar produto", http.StatusInternalServerError)
 			return
 		}
 
-		// Atualizar estoque para o novo produto
-		_, err = db.Exec(
+		// Criar o registro de estoque dentro da mesma transação
+		_, err = tx.Exec(
 			"INSERT INTO estoque (produto_id, quantidade, alerta_minimo) VALUES ($1, 0, 5)",
 			produto.ID,
 		)
 		if err != nil {
-			// Mesmo que falhe ao criar o estoque, o produto já foi criado
-			// Em um sistema real, usaríamos transações para garantir atomicidade
-			http.Error(w, "Produto criado, mas houve erro ao configurar estoque", http.StatusInternalServerError)
+			tx.Rollback()
+			http.Error(w, "Erro ao configurar estoque para o produto", http.StatusInternalServerError)
+			return
+		}
+
+		// Commit da transação
+		err = tx.Commit()
+		if err != nil {
+			tx.Rollback()
+			http.Error(w, "Erro ao finalizar criação do produto", http.StatusInternalServerError)
 			return
 		}
 
