@@ -26,28 +26,28 @@ const (
 
 // Middleware CORS para permitir requisições cross-origin
 func corsMiddleware(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        // Obtenha a origem da requisição
-        origin := r.Header.Get("Origin")
-        
-        // LISTA DE ORIGENS PERMITIDAS
-        allowedOrigins := map[string]bool{
-            "http://localhost:3000": true,
-        }
-        
-        // Verifique se a origem está na lista de permitidas
-        if allowedOrigins[origin] {
-            w.Header().Set("Access-Control-Allow-Origin", origin)
-        }
-        
-        w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-        w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Authorization")
-        if r.Method == "OPTIONS" {
-            w.WriteHeader(http.StatusOK)
-            return
-        }
-        next.ServeHTTP(w, r)
-    })
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Obtenha a origem da requisição
+		origin := r.Header.Get("Origin")
+		
+		// LISTA DE ORIGENS PERMITIDAS
+		allowedOrigins := map[string]bool{
+			"http://localhost:3000": true,
+		}
+		
+		// Verifique se a origem está na lista de permitidas
+		if allowedOrigins[origin] {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+		
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, PATCH")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Authorization")
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func main() {
@@ -87,8 +87,7 @@ func main() {
 	// Rota de login (pública)
 	mux.HandleFunc("/api/login", handlers.LoginHandler(db))
 	
-	// Rotas protegidas
-	// Produtos
+	// Rotas protegidas - Produtos
 	mux.Handle("/api/produtos", middleware.AuthMiddleware(db)(http.HandlerFunc(handlers.ListarProdutosHandler(db))))
 	mux.Handle("/api/produtos/", middleware.AuthMiddleware(db)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
@@ -117,6 +116,63 @@ func main() {
 		
 		// Se não for nenhum dos casos acima, método não permitido
 		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+	})))
+	
+	// NOVAS ROTAS PARA PEDIDOS
+	mux.Handle("/api/pedidos", middleware.AuthMiddleware(db)(http.HandlerFunc(handlers.ListarPedidosHandler(db))))
+	mux.Handle("/api/pedidos/", middleware.AuthMiddleware(db)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		segments := strings.Split(path, "/")
+
+		// Rota para criar novo pedido
+		if len(segments) == 4 && segments[3] == "" && r.Method == http.MethodPost {
+			handlers.CriarPedidoHandler(db)(w, r)
+			return
+		}
+
+		// Rota para atualizar status do pedido
+		if len(segments) == 5 && segments[4] == "status" && (r.Method == http.MethodPut || r.Method == http.MethodPatch) {
+			handlers.AtualizarStatusPedidoHandler(db)(w, r)
+			return
+		}
+
+		// Rota para obter pedido específico
+		if len(segments) == 4 && segments[3] != "" && r.Method == http.MethodGet {
+			handlers.ObterPedidoHandler(db)(w, r)
+			return
+		}
+
+		http.Error(w, "Rota não encontrada", http.StatusNotFound)
+	})))
+
+	// NOVAS ROTAS PARA ESTOQUE
+	mux.Handle("/api/estoque", middleware.AuthMiddleware(db)(http.HandlerFunc(handlers.ListarEstoqueHandler(db))))
+	mux.Handle("/api/estoque/alertas", middleware.AuthMiddleware(db)(http.HandlerFunc(handlers.ListarAlertasEstoqueHandler(db))))
+	mux.Handle("/api/estoque/botijas/emprestimo", middleware.AuthMiddleware(db)(http.HandlerFunc(handlers.EmprestimoBotijasHandler(db))))
+	mux.Handle("/api/estoque/botijas/devolucao", middleware.AuthMiddleware(db)(http.HandlerFunc(handlers.DevolucaoBotijasEmprestimoHandler(db))))
+	mux.Handle("/api/estoque/", middleware.AuthMiddleware(db)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		segments := strings.Split(path, "/")
+
+		// Rota para obter item específico do estoque
+		if len(segments) == 4 && segments[3] != "" && r.Method == http.MethodGet {
+			handlers.ObterEstoqueItemHandler(db)(w, r)
+			return
+		}
+
+		// Rota para atualizar estoque
+		if len(segments) == 4 && segments[3] != "" && (r.Method == http.MethodPut || r.Method == http.MethodPatch) {
+			handlers.AtualizarEstoqueHandler(db)(w, r)
+			return
+		}
+
+		// Rota para atualizar alerta mínimo
+		if len(segments) == 5 && segments[4] == "alerta" && (r.Method == http.MethodPut || r.Method == http.MethodPatch) {
+			handlers.AtualizarAlertaMinimoHandler(db)(w, r)
+			return
+		}
+
+		http.Error(w, "Rota não encontrada", http.StatusNotFound)
 	})))
 	
 	// Aplicar o middleware CORS a todas as rotas
@@ -224,6 +280,7 @@ func inicializarBancoDados(db *sql.DB) error {
 			valor_total DECIMAL(10, 2) NOT NULL,
 			observacoes TEXT,
 			endereco_entrega VARCHAR(255) NOT NULL,
+			canal_origem VARCHAR(20),
 			data_entrega TIMESTAMP WITH TIME ZONE,
 			criado_em TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 			atualizado_em TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -241,7 +298,8 @@ func inicializarBancoDados(db *sql.DB) error {
 			produto_id INTEGER NOT NULL REFERENCES produtos(id),
 			quantidade INTEGER NOT NULL,
 			preco_unitario DECIMAL(10, 2) NOT NULL,
-			subtotal DECIMAL(10, 2) NOT NULL
+			subtotal DECIMAL(10, 2) NOT NULL,
+			retorna_botija BOOLEAN DEFAULT FALSE
 		)
 	`)
 	if err != nil {
@@ -382,6 +440,27 @@ func inicializarBancoDados(db *sql.DB) error {
 		}
 		
 		fmt.Println("Produtos e estoque inicial configurados com sucesso!")
+	}
+
+	// Verificar se a coluna canal_origem existe na tabela pedidos
+	var columnExists bool
+	err = db.QueryRow(`
+		SELECT EXISTS (
+			SELECT 1 
+			FROM information_schema.columns 
+			WHERE table_name = 'pedidos' AND column_name = 'canal_origem'
+		)
+	`).Scan(&columnExists)
+	if err != nil {
+		log.Printf("Erro ao verificar coluna canal_origem: %v", err)
+	} else if !columnExists {
+		// Adicionar a coluna canal_origem se não existir
+		_, err = db.Exec(`ALTER TABLE pedidos ADD COLUMN canal_origem VARCHAR(20)`)
+		if err != nil {
+			log.Printf("Erro ao adicionar coluna canal_origem: %v", err)
+		} else {
+			log.Println("Coluna canal_origem adicionada com sucesso à tabela pedidos")
+		}
 	}
 	
 	fmt.Println("Banco de dados inicializado com sucesso!")

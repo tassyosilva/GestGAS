@@ -11,6 +11,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Produtos from './pages/Produtos';
 import Pedidos from './pages/Pedidos';
+import PedidoDetalhe from './pages/PedidoDetalhe';
+import Estoque from './pages/Estoque';
 import Clientes from './pages/Clientes';
 import Entregadores from './pages/Entregadores';
 import Relatorios from './pages/Relatorios';
@@ -34,6 +36,8 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/produtos" element={<Produtos />} />
               <Route path="/pedidos" element={<Pedidos />} />
+              <Route path="/pedidos/:id" element={<PedidoDetalhe />} />
+              <Route path="/estoque" element={<Estoque />} />
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/entregadores" element={<Entregadores />} />
               <Route path="/relatorios" element={<Relatorios />} />

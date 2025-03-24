@@ -1,84 +1,89 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
-// Estoque representa o estoque de um produto no sistema
+// TipoMovimentacao define os tipos de movimentação de estoque
+type TipoMovimentacao string
+
+const (
+	MovimentacaoEntrada     TipoMovimentacao = "entrada"      // Adição de produtos ao estoque
+	MovimentacaoSaida       TipoMovimentacao = "saida"        // Remoção de produtos do estoque (vendas)
+	MovimentacaoAjuste      TipoMovimentacao = "ajuste"       // Ajuste manual de estoque
+	MovimentacaoDevolucao   TipoMovimentacao = "devolucao"    // Devolução de produto
+	MovimentacaoBotijasVazias TipoMovimentacao = "botijas_vazias" // Entrada de botijas vazias
+	MovimentacaoEmprestimo  TipoMovimentacao = "emprestimo"   // Empréstimo de botijas ao caminhoneiro
+	MovimentacaoDevolucaoEmprestimo TipoMovimentacao = "devolucao_emprestimo" // Devolução de botijas emprestadas
+)
+
+// Estoque representa o estado atual do estoque de um produto
 type Estoque struct {
-	ID            int       `json:"id"`
-	ProdutoID     int       `json:"produto_id"`
-	Produto       *Produto  `json:"produto,omitempty"`
-	Quantidade    int       `json:"quantidade"`
-	BotijasVazias int       `json:"botijas_vazias,omitempty"` // Apenas para botijas de gás
-	BotijasEmprestadas int  `json:"botijas_emprestadas,omitempty"` // Botijas emprestadas a caminhoneiros
-	AlertaMinimo  int       `json:"alerta_minimo,omitempty"` // Quantidade mínima antes de alertar para reposição
-	CriadoEm      time.Time `json:"criado_em"`
-	AtualizadoEm  time.Time `json:"atualizado_em"`
+	ID                int       `json:"id"`
+	ProdutoID         int       `json:"produto_id"`
+	NomeProduto       string    `json:"nome_produto,omitempty"` // Para facilitar a exibição
+	Quantidade        int       `json:"quantidade"`            // Botijas cheias ou produtos regulares
+	BotijasVazias     int       `json:"botijas_vazias,omitempty"`    // Para controle de botijas vazias
+	BotijasEmprestadas int       `json:"botijas_emprestadas,omitempty"` // Para controle de botijas emprestadas ao caminhoneiro
+	AlertaMinimo      int       `json:"alerta_minimo,omitempty"`
+	CriadoEm          time.Time `json:"criado_em"`
+	AtualizadoEm      time.Time `json:"atualizado_em"`
 }
 
-// MovimentacaoEstoque representa uma movimentação de entrada ou saída no estoque
+// MovimentacaoEstoque representa uma movimentação no estoque
 type MovimentacaoEstoque struct {
-	ID            int       `json:"id"`
-	ProdutoID     int       `json:"produto_id"`
-	Produto       *Produto  `json:"produto,omitempty"`
-	Tipo          string    `json:"tipo"` // entrada, saida, emprestimo, devolucao
-	Quantidade    int       `json:"quantidade"`
-	Observacoes   string    `json:"observacoes,omitempty"`
-	UsuarioID     int       `json:"usuario_id"`
-	PedidoID      int       `json:"pedido_id,omitempty"` // Se a movimentação está associada a um pedido
-	CriadoEm      time.Time `json:"criado_em"`
+	ID         int              `json:"id"`
+	ProdutoID  int              `json:"produto_id"`
+	Tipo       TipoMovimentacao `json:"tipo"`
+	Quantidade int              `json:"quantidade"`
+	Observacoes string          `json:"observacoes,omitempty"`
+	UsuarioID  int              `json:"usuario_id"`
+	PedidoID   *int             `json:"pedido_id,omitempty"` // Pode ser nulo em ajustes manuais
+	CriadoEm   time.Time        `json:"criado_em"`
 }
 
-// Tipos de movimentação de estoque
-const (
-	MovimentacaoEntrada     = "entrada"     // Entrada de produtos no estoque
-	MovimentacaoSaida       = "saida"       // Saída de produtos do estoque
-	MovimentacaoEmprestimo  = "emprestimo"  // Empréstimo de botijas vazias para caminhoneiros
-	MovimentacaoDevolucao   = "devolucao"   // Devolução de botijas vazias por caminhoneiros
-	MovimentacaoAjuste      = "ajuste"      // Ajuste manual de estoque
-)
-
-// VendaFiada representa uma venda a prazo (fiado)
-type VendaFiada struct {
-	ID            int       `json:"id"`
-	PedidoID      int       `json:"pedido_id"`
-	ClienteID     int       `json:"cliente_id"`
-	Cliente       *Cliente  `json:"cliente,omitempty"`
-	ValorTotal    float64   `json:"valor_total"`
-	DataVencimento time.Time `json:"data_vencimento"`
-	Status        string    `json:"status"` // pendente, pago, vencido
-	DataPagamento *time.Time `json:"data_pagamento,omitempty"`
-	CriadoEm      time.Time `json:"criado_em"`
-	AtualizadoEm  time.Time `json:"atualizado_em"`
+// MovimentacaoEstoqueRequest é a estrutura para receber uma movimentação de estoque via API
+type MovimentacaoEstoqueRequest struct {
+	ProdutoID   int              `json:"produto_id"`
+	Tipo        TipoMovimentacao `json:"tipo"`
+	Quantidade  int              `json:"quantidade"`
+	Observacoes string           `json:"observacoes,omitempty"`
+	PedidoID    *int             `json:"pedido_id,omitempty"`
 }
 
-// VendaAntecipada representa uma venda com pagamento antecipado
-type VendaAntecipada struct {
-	ID            int       `json:"id"`
-	ClienteID     int       `json:"cliente_id"`
-	Cliente       *Cliente  `json:"cliente,omitempty"`
-	ProdutoID     int       `json:"produto_id"`
-	Produto       *Produto  `json:"produto,omitempty"`
-	Quantidade    int       `json:"quantidade"`
-	ValorTotal    float64   `json:"valor_total"`
-	FormaPagamento string    `json:"forma_pagamento"`
-	DataPagamento time.Time `json:"data_pagamento"`
-	DataEntregaPrevista time.Time `json:"data_entrega_prevista"`
-	Status        string    `json:"status"` // pago, entregue, cancelado
-	PedidoID      int       `json:"pedido_id,omitempty"` // ID do pedido quando for entregue
-	CriadoEm      time.Time `json:"criado_em"`
-	AtualizadoEm  time.Time `json:"atualizado_em"`
+// EstoqueResponse é a estrutura de resposta para consulta de estoque
+type EstoqueResponse struct {
+	ID                int       `json:"id"`
+	ProdutoID         int       `json:"produto_id"`
+	NomeProduto       string    `json:"nome_produto"`
+	Categoria         string    `json:"categoria"` // Categoria do produto
+	Quantidade        int       `json:"quantidade"`
+	BotijasVazias     int       `json:"botijas_vazias,omitempty"`
+	BotijasEmprestadas int       `json:"botijas_emprestadas,omitempty"`
+	AlertaMinimo      int       `json:"alerta_minimo,omitempty"`
+	Status            string    `json:"status"` // "normal", "baixo", "critico" baseado no alerta mínimo
+	AtualizadoEm      time.Time `json:"atualizado_em"`
 }
 
-// Status de vendas fiadas
-const (
-	StatusFiadoPendente = "pendente"
-	StatusFiadoPago     = "pago"
-	StatusFiadoVencido  = "vencido"
-)
+// EmprestimoBotijasRequest é a estrutura para receber solicitação de empréstimo de botijas
+type EmprestimoBotijasRequest struct {
+	ProdutoID   int    `json:"produto_id"`
+	Quantidade  int    `json:"quantidade"`
+	Observacoes string `json:"observacoes,omitempty"`
+}
 
-// Status de vendas antecipadas
-const (
-	StatusAntecipadoPago     = "pago"
-	StatusAntecipadoEntregue = "entregue"
-	StatusAntecipadoCancelado = "cancelado"
-)
+// DevolucaoBotijasRequest é a estrutura para receber devolução de botijas emprestadas
+type DevolucaoBotijasRequest struct {
+	ProdutoID   int    `json:"produto_id"`
+	Quantidade  int    `json:"quantidade"`
+	Observacoes string `json:"observacoes,omitempty"`
+}
+
+// EstoqueAlertaResponse é a estrutura de resposta para alertas de estoque baixo
+type EstoqueAlertaResponse struct {
+	ProdutoID    int    `json:"produto_id"`
+	NomeProduto  string `json:"nome_produto"`
+	Quantidade   int    `json:"quantidade"`
+	AlertaMinimo int    `json:"alerta_minimo"`
+	Status       string `json:"status"` // "baixo" ou "critico"
+}

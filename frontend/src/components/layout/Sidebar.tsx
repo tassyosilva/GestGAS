@@ -22,6 +22,7 @@ import {
     Insights as RelatoriosIcon,
     Settings as ConfiguracoesIcon,
     Menu as MenuIcon,
+    Warehouse as EstoqueIcon,
 } from '@mui/icons-material';
 import logo from '../../assets/logo.png';
 
@@ -29,6 +30,7 @@ import logo from '../../assets/logo.png';
 const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Pedidos', icon: <PedidosIcon />, path: '/pedidos' },
+    { text: 'Estoque', icon: <EstoqueIcon />, path: '/estoque' },
     { text: 'Produtos', icon: <ProdutosIcon />, path: '/produtos' },
     { text: 'Clientes', icon: <ClientesIcon />, path: '/clientes' },
     { text: 'Entregadores', icon: <EntregadoresIcon />, path: '/entregadores' },
