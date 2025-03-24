@@ -163,6 +163,7 @@ const Pedidos = () => {
             if (!token) {
                 setError('Não autorizado. Faça login para continuar.');
                 setLoading(false);
+                setPedidos([]); // Inicializar como array vazio em caso de erro
                 return;
             }
 
@@ -186,11 +187,12 @@ const Pedidos = () => {
                 }
             );
 
-            setPedidos(response.data.pedidos);
+            setPedidos(response.data.pedidos || []);
             setTotal(response.data.total);
         } catch (err) {
             console.error('Erro ao carregar pedidos:', err);
             setError('Não foi possível carregar os pedidos. Tente novamente mais tarde.');
+            setPedidos([]); // Inicializar como array vazio em caso de erro
         } finally {
             setLoading(false);
         }
@@ -378,7 +380,7 @@ const Pedidos = () => {
                                         {error}
                                     </TableCell>
                                 </TableRow>
-                            ) : pedidos.length === 0 ? (
+                            ) : !pedidos || pedidos.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={8} align="center">
                                         Nenhum pedido encontrado.
