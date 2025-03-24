@@ -12,6 +12,7 @@ import Dashboard from './pages/Dashboard';
 import Produtos from './pages/Produtos';
 import Pedidos from './pages/Pedidos';
 import PedidoDetalhe from './pages/PedidoDetalhe';
+import NovoPedido from './pages/NovoPedido';
 import Estoque from './pages/Estoque';
 import Clientes from './pages/Clientes';
 import Entregadores from './pages/Entregadores';
@@ -36,6 +37,7 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/produtos" element={<Produtos />} />
               <Route path="/pedidos" element={<Pedidos />} />
+              <Route path="/pedidos/novo" element={<NovoPedido />} />
               <Route path="/pedidos/:id" element={<PedidoDetalhe />} />
               <Route path="/estoque" element={<Estoque />} />
               <Route path="/clientes" element={<Clientes />} />
