@@ -56,12 +56,14 @@ func ListarPedidosHandler(db *sql.DB) http.HandlerFunc {
 		offset := (page - 1) * limit
 		fmt.Println("Paginação configurada:", "page=", page, "limit=", limit, "offset=", offset)
 
-		// Construir consulta SQL base
+		// Construir consulta SQL base com JOIN na tabela de clientes
 		sqlQuery := `
-			SELECT p.id, p.cliente_id, p.atendente_id, p.entregador_id, p.status, 
+			SELECT p.id, p.cliente_id, c.nome AS cliente_nome, c.telefone AS cliente_telefone, 
+			       p.atendente_id, p.entregador_id, p.status, 
 			       p.forma_pagamento, p.valor_total, p.observacoes, p.endereco_entrega, 
 				   p.canal_origem, p.data_entrega, p.criado_em, p.atualizado_em
 			FROM pedidos p
+			JOIN clientes c ON p.cliente_id = c.id
 			WHERE 1=1
 		`
 		var params []interface{}
@@ -126,10 +128,14 @@ func ListarPedidosHandler(db *sql.DB) http.HandlerFunc {
 			var entregadorID sql.NullInt64
 			var dataEntrega sql.NullTime
 			var canalOrigem sql.NullString
+			var clienteNome string
+			var clienteTelefone string
+			var observacoes sql.NullString
 
 			err := rows.Scan(
-				&p.ID, &p.ClienteID, &p.AtendenteID, &entregadorID, &p.Status,
-				&p.FormaPagamento, &p.ValorTotal, &p.Observacoes, &p.EnderecoEntrega,
+				&p.ID, &p.ClienteID, &clienteNome, &clienteTelefone,
+				&p.AtendenteID, &entregadorID, &p.Status,
+				&p.FormaPagamento, &p.ValorTotal, &observacoes, &p.EnderecoEntrega,
 				&canalOrigem, &dataEntrega, &p.CriadoEm, &p.AtualizadoEm,
 			)
 			if err != nil {
@@ -148,6 +154,16 @@ func ListarPedidosHandler(db *sql.DB) http.HandlerFunc {
 			}
 			if canalOrigem.Valid {
 				p.CanalOrigem = models.CanalOrigem(canalOrigem.String)
+			}
+			if observacoes.Valid {
+				p.Observacoes = observacoes.String
+			}
+
+			// Adicionar cliente básico
+			p.Cliente = &models.ClienteBasico{
+				ID:       p.ClienteID,
+				Nome:     clienteNome,
+				Telefone: clienteTelefone,
 			}
 
 			// Buscar itens do pedido
@@ -622,7 +638,7 @@ func AtualizarStatusPedidoHandler(db *sql.DB) http.HandlerFunc {
 
 		// Iniciar transação
 		fmt.Println("Iniciando transação no banco de dados")
-		tx,err := db.Begin()
+		tx, err := db.Begin()
 		if err != nil {
 			fmt.Println("ERRO ao iniciar transação:", err)
 			http.Error(w, "Erro ao iniciar transação: "+err.Error(), http.StatusInternalServerError)

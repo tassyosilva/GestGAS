@@ -43,7 +43,7 @@ interface Usuario {
 
 interface Pedido {
     id: number;
-    cliente: Cliente;
+    cliente: Cliente | number | string; // Cliente pode ser objeto, ID ou string
     cliente_id?: number;
     cliente_nome?: string;
     atendente: Usuario;
@@ -189,6 +189,11 @@ const Pedidos = () => {
                 }
             );
 
+            // Adicionar depuração para identificar a estrutura dos dados
+            if (response.data && Array.isArray(response.data.pedidos) && response.data.pedidos.length > 0) {
+                console.log('Estrutura do primeiro pedido:', JSON.stringify(response.data.pedidos[0], null, 2));
+            }
+
             // Garantir que temos um array de pedidos, mesmo que a resposta seja diferente do esperado
             if (response.data && Array.isArray(response.data.pedidos)) {
                 setPedidos(response.data.pedidos);
@@ -246,13 +251,24 @@ const Pedidos = () => {
         navigate(`/pedidos/${id}`);
     };
 
-    // Função para obter o nome do cliente de forma segura
+    // Função aprimorada para obter o nome do cliente de forma segura
     const getClienteNome = (pedido: Pedido): string => {
-        // Verificar diferentes possibilidades de estrutura de dados
-        if (pedido.cliente && pedido.cliente.nome) {
+        // Depuração para identificar a estrutura exata dos dados
+        console.log('Estrutura do pedido:', pedido);
+
+        // Verificar todas as possibilidades comuns
+        if (pedido.cliente && typeof pedido.cliente === 'object' && pedido.cliente.nome) {
             return pedido.cliente.nome;
         } else if (pedido.cliente_nome) {
             return pedido.cliente_nome;
+        } else if (typeof pedido.cliente === 'string') {
+            return pedido.cliente; // Se cliente for diretamente uma string do nome
+        } else if (pedido.cliente_id) {
+            // Se tivermos apenas o ID, podemos mostrar isso temporariamente
+            return `Cliente #${pedido.cliente_id}`;
+        } else if (typeof pedido.cliente === 'number') {
+            // Se cliente for um ID numérico
+            return `Cliente #${pedido.cliente}`;
         } else {
             return 'Cliente não informado';
         }

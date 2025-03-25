@@ -41,6 +41,7 @@ const (
 type Pedido struct {
 	ID             int             `json:"id"`
 	ClienteID      int             `json:"cliente_id"`
+	Cliente        *ClienteBasico  `json:"cliente,omitempty"` // Campo adicionado
 	AtendenteID    int             `json:"atendente_id"`
 	EntregadorID   *int            `json:"entregador_id,omitempty"` // Pode ser nulo inicialmente
 	Status         StatusPedido    `json:"status"`
