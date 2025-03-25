@@ -29,23 +29,25 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 // Tipos para o componente
+interface Cliente {
+    id: number;
+    nome: string;
+    telefone: string;
+}
+
+interface Usuario {
+    id: number;
+    nome: string;
+    perfil: string;
+}
+
 interface Pedido {
     id: number;
-    cliente: {
-        id: number;
-        nome: string;
-        telefone: string;
-    };
-    atendente: {
-        id: number;
-        nome: string;
-        perfil: string;
-    };
-    entregador?: {
-        id: number;
-        nome: string;
-        perfil: string;
-    };
+    cliente: Cliente;
+    cliente_id?: number;
+    cliente_nome?: string;
+    atendente: Usuario;
+    entregador?: Usuario;
     status: string;
     forma_pagamento: string;
     valor_total: number;
@@ -187,8 +189,19 @@ const Pedidos = () => {
                 }
             );
 
-            setPedidos(response.data.pedidos || []);
-            setTotal(response.data.total);
+            // Garantir que temos um array de pedidos, mesmo que a resposta seja diferente do esperado
+            if (response.data && Array.isArray(response.data.pedidos)) {
+                setPedidos(response.data.pedidos);
+                setTotal(response.data.total || 0);
+            } else if (Array.isArray(response.data)) {
+                // Caso a API retorne diretamente um array
+                setPedidos(response.data);
+                setTotal(response.data.length);
+            } else {
+                console.error('Resposta inesperada da API:', response.data);
+                setPedidos([]);
+                setTotal(0);
+            }
         } catch (err) {
             console.error('Erro ao carregar pedidos:', err);
             setError('Não foi possível carregar os pedidos. Tente novamente mais tarde.');
@@ -231,6 +244,18 @@ const Pedidos = () => {
 
     const handleVerPedido = (id: number) => {
         navigate(`/pedidos/${id}`);
+    };
+
+    // Função para obter o nome do cliente de forma segura
+    const getClienteNome = (pedido: Pedido): string => {
+        // Verificar diferentes possibilidades de estrutura de dados
+        if (pedido.cliente && pedido.cliente.nome) {
+            return pedido.cliente.nome;
+        } else if (pedido.cliente_nome) {
+            return pedido.cliente_nome;
+        } else {
+            return 'Cliente não informado';
+        }
     };
 
     return (
@@ -391,7 +416,7 @@ const Pedidos = () => {
                                     <TableRow key={pedido.id} hover onClick={() => handleVerPedido(pedido.id)}>
                                         <TableCell>{pedido.id}</TableCell>
                                         <TableCell>{formatDate(pedido.criado_em)}</TableCell>
-                                        <TableCell>{pedido.cliente.nome}</TableCell>
+                                        <TableCell>{getClienteNome(pedido)}</TableCell>
                                         <TableCell sx={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                             {pedido.endereco_entrega}
                                         </TableCell>
