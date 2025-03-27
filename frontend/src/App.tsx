@@ -18,6 +18,7 @@ import Clientes from './pages/Clientes';
 import Entregadores from './pages/Entregadores';
 import Relatorios from './pages/Relatorios';
 import Configuracoes from './pages/Configuracoes';
+import Usuarios from './pages/Usuarios';
 
 // Componentes de autenticação
 import PrivateRoute from './components/auth/PrivateRoute';
@@ -44,6 +45,7 @@ function App() {
               <Route path="/entregadores" element={<Entregadores />} />
               <Route path="/relatorios" element={<Relatorios />} />
               <Route path="/configuracoes" element={<Configuracoes />} />
+              <Route path="/usuarios" element={<Usuarios />} />
             </Route>
           </Route>
 

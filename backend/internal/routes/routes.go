@@ -161,6 +161,47 @@ func ConfigurarRotas(db *sql.DB) http.Handler {
 		http.Error(w, "Rota não encontrada", http.StatusNotFound)
 	})))
 	
+	// Rotas para usuários
+	mux.Handle("/api/usuarios", middleware.AuthMiddleware(db)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verificar se é método GET para listar ou POST para criar
+		if r.Method == http.MethodGet {
+			handlers.ListarUsuariosHandler(db)(w, r)
+			return
+		} else if r.Method == http.MethodPost {
+			handlers.CriarUsuarioHandler(db)(w, r)
+			return
+		}
+		
+		// Se não for nenhum dos casos acima, método não permitido
+		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+	})))
+	
+	mux.Handle("/api/usuarios/", middleware.AuthMiddleware(db)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		segments := strings.Split(path, "/")
+		
+		// Verificar se é uma requisição para um usuário específico
+		if len(segments) >= 4 && segments[3] != "" {
+			switch r.Method {
+			case http.MethodGet:
+				handlers.ObterUsuarioHandler(db)(w, r)
+			case http.MethodPut, http.MethodPatch:
+				handlers.AtualizarUsuarioHandler(db)(w, r)
+			case http.MethodDelete:
+				handlers.ExcluirUsuarioHandler(db)(w, r)
+			default:
+				http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+			}
+			return
+		}
+		
+		// Se não for nenhum dos casos acima, método não permitido
+		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+	})))
+	
+	// Rota específica para listar entregadores
+	mux.Handle("/api/entregadores", middleware.AuthMiddleware(db)(http.HandlerFunc(handlers.ListarEntregadoresHandler(db))))
+	
 	// Aplicar o middleware CORS a todas as rotas
 	return middleware.CorsMiddleware(mux)
 }

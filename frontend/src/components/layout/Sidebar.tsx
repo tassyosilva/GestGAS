@@ -23,6 +23,7 @@ import {
     Settings as ConfiguracoesIcon,
     Menu as MenuIcon,
     Warehouse as EstoqueIcon,
+    People as PeopleIcon,
 } from '@mui/icons-material';
 import logo from '../../assets/logo.png';
 
@@ -34,6 +35,7 @@ const menuItems = [
     { text: 'Produtos', icon: <ProdutosIcon />, path: '/produtos' },
     { text: 'Clientes', icon: <ClientesIcon />, path: '/clientes' },
     { text: 'Entregadores', icon: <EntregadoresIcon />, path: '/entregadores' },
+    { text: 'Usuários', icon: <PeopleIcon />, path: '/usuarios' },
     { text: 'Relatórios', icon: <RelatoriosIcon />, path: '/relatorios' },
     { text: 'Configurações', icon: <ConfiguracoesIcon />, path: '/configuracoes' },
 ];
