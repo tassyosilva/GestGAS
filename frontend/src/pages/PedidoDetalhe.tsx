@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+
 import {
     Box,
     Typography,
@@ -349,6 +350,122 @@ const PedidoDetalhe: React.FC = () => {
         }
     };
 
+    // Função para confirmar entrega e gerenciar estoque
+    const handleConfirmarEntregaComEstoque = async () => {
+        if (!pedido) return;
+
+        setAtualizandoStatus(true);
+
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) throw new Error('Não autorizado.');
+
+            // Primeiro atualizar o status do pedido para "entregue"
+            const statusPayload = {
+                status: 'entregue',
+            };
+
+            // Atualizar o status
+            await axios.put(
+                `${API_BASE_URL}/pedidos/${id}/status`,
+                statusPayload,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            // Em seguida, usar o novo endpoint para gerenciar o estoque
+            const estoquePayload = {
+                pedido_id: parseInt(id as string),
+                acao: 'confirmar_entrega',
+            };
+
+            await axios.post(
+                `${API_BASE_URL}/pedidos/estoque`,
+                estoquePayload,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            // Atualizar a tela
+            await buscarPedido();
+
+            // Mostrar mensagem de sucesso
+            setSnackbar({
+                open: true,
+                message: 'Entrega confirmada e estoque atualizado com sucesso!',
+                severity: 'success',
+            });
+
+            // Fechar diálogo
+            setDialogOpen(false);
+        } catch (err: any) {
+            console.error('Erro ao confirmar entrega:', err);
+            setSnackbar({
+                open: true,
+                message: err.response?.data || 'Erro ao confirmar entrega. Tente novamente.',
+                severity: 'error',
+            });
+        } finally {
+            setAtualizandoStatus(false);
+        }
+    };
+
+    // Função para cancelar pedido e gerenciar estoque
+    const handleCancelarPedidoComEstoque = async () => {
+        if (!pedido) return;
+
+        setAtualizandoStatus(true);
+
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) throw new Error('Não autorizado.');
+
+            // Usar diretamente o endpoint de estoque, que já atualiza status e devolve estoque
+            const estoquePayload = {
+                pedido_id: parseInt(id as string),
+                acao: 'cancelar',
+            };
+
+            await axios.post(
+                `${API_BASE_URL}/pedidos/estoque`,
+                estoquePayload,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            // Atualizar a tela
+            await buscarPedido();
+
+            // Mostrar mensagem de sucesso
+            setSnackbar({
+                open: true,
+                message: 'Pedido cancelado e estoque atualizado com sucesso!',
+                severity: 'success',
+            });
+        } catch (err: any) {
+            console.error('Erro ao cancelar pedido:', err);
+            setSnackbar({
+                open: true,
+                message: err.response?.data || 'Erro ao cancelar pedido. Tente novamente.',
+                severity: 'error',
+            });
+        } finally {
+            setAtualizandoStatus(false);
+        }
+    };
+
     // Voltar para a lista de pedidos
     const handleVoltar = () => {
         navigate('/pedidos');
@@ -564,10 +681,7 @@ const PedidoDetalhe: React.FC = () => {
                                         variant="contained"
                                         color="success"
                                         startIcon={<CheckIcon />}
-                                        onClick={() => {
-                                            setNovoStatus('entregue');
-                                            setDialogOpen(true);
-                                        }}
+                                        onClick={handleConfirmarEntregaComEstoque}
                                     >
                                         Confirmar Entrega
                                     </Button>
@@ -590,10 +704,7 @@ const PedidoDetalhe: React.FC = () => {
                                         variant="contained"
                                         color="error"
                                         startIcon={<CancelIcon />}
-                                        onClick={() => {
-                                            setNovoStatus('cancelado');
-                                            setDialogOpen(true);
-                                        }}
+                                        onClick={handleCancelarPedidoComEstoque}
                                     >
                                         Cancelar Pedido
                                     </Button>
@@ -724,3 +835,4 @@ const PedidoDetalhe: React.FC = () => {
 };
 
 export default PedidoDetalhe;
+
