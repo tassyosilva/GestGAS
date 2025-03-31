@@ -134,6 +134,10 @@ func ConfigurarRotas(db *sql.DB) http.Handler {
 
 	// Rota para gerenciamento de estoque durante o ciclo de vida do pedido
 	mux.Handle("/api/pedidos/estoque", middleware.AuthMiddleware(db)(http.HandlerFunc(handlers.GerenciarEstoquePedidoHandler(db))))
+	// Adicionar nova rota para confirmar entrega
+	mux.Handle("/api/pedidos/confirmar-entrega", middleware.AuthMiddleware(db)(http.HandlerFunc(handlers.ConfirmarEntregaSimples(db))))
+	// Adicionar nova rota para registrar retorno de botijas
+	mux.Handle("/api/pedidos/registrar-botijas", middleware.AuthMiddleware(db)(http.HandlerFunc(handlers.RegistrarRetornoBotijasHandler(db))))
 
 	// Rotas para estoque
 	mux.Handle("/api/estoque", middleware.AuthMiddleware(db)(http.HandlerFunc(handlers.ListarEstoqueHandler(db))))

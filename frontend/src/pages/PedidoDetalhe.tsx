@@ -180,7 +180,7 @@ const PedidoDetalhe: React.FC = () => {
     const [snackbar, setSnackbar] = useState({
         open: false,
         message: '',
-        severity: 'success' as 'success' | 'error',
+        severity: 'success' as 'success' | 'error' | 'warning',
     });
 
     // Buscar dados do pedido
@@ -222,7 +222,7 @@ const PedidoDetalhe: React.FC = () => {
 
             // Supondo que haja um endpoint para listar usuários com perfil de entregador
             const response = await axios.get<Entregador[]>(
-                `${API_BASE_URL}/usuarios?perfil=entregador`,
+                `${API_BASE_URL}/entregadores`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -350,42 +350,20 @@ const PedidoDetalhe: React.FC = () => {
         }
     };
 
-    // Função para confirmar entrega e gerenciar estoque
-    const handleConfirmarEntregaComEstoque = async () => {
+    // Função para registrar botijas vazias
+
+    // Função para confirmar entrega e registrar botijas vazias
+    const handleConfirmarEntregaCompleta = async () => {
         if (!pedido) return;
-
         setAtualizandoStatus(true);
-
         try {
             const token = localStorage.getItem('token');
             if (!token) throw new Error('Não autorizado.');
 
-            // Primeiro atualizar o status do pedido para "entregue"
-            const statusPayload = {
-                status: 'entregue',
-            };
-
-            // Atualizar o status
-            await axios.put(
-                `${API_BASE_URL}/pedidos/${id}/status`,
-                statusPayload,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                }
-            );
-
-            // Em seguida, usar o novo endpoint para gerenciar o estoque
-            const estoquePayload = {
-                pedido_id: parseInt(id as string),
-                acao: 'confirmar_entrega',
-            };
-
+            // Primeiro confirmar a entrega
             await axios.post(
-                `${API_BASE_URL}/pedidos/estoque`,
-                estoquePayload,
+                `${API_BASE_URL}/pedidos/confirmar-entrega`,
+                { pedido_id: parseInt(id as string) },
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -394,18 +372,46 @@ const PedidoDetalhe: React.FC = () => {
                 }
             );
 
-            // Atualizar a tela
+            // Atualizar a tela para mostrar o pedido como entregue
             await buscarPedido();
 
-            // Mostrar mensagem de sucesso
-            setSnackbar({
-                open: true,
-                message: 'Entrega confirmada e estoque atualizado com sucesso!',
-                severity: 'success',
-            });
+            // Agora registrar as botijas vazias (se houver)
+            // Verificar se há algum item com retorna_botija = true
+            const temBotijasParaRetornar = pedido.itens.some(item => item.retorna_botija);
 
-            // Fechar diálogo
-            setDialogOpen(false);
+            if (temBotijasParaRetornar) {
+                try {
+                    await axios.post(
+                        `${API_BASE_URL}/pedidos/registrar-botijas`,
+                        { pedido_id: parseInt(id as string) },
+                        {
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                                'Content-Type': 'application/json',
+                            },
+                        }
+                    );
+
+                    setSnackbar({
+                        open: true,
+                        message: 'Entrega confirmada e botijas vazias registradas com sucesso!',
+                        severity: 'success',
+                    });
+                } catch (botijasErr) {
+                    console.error('Erro ao registrar botijas vazias:', botijasErr);
+                    setSnackbar({
+                        open: true,
+                        message: 'Entrega confirmada, mas houve um erro ao registrar botijas vazias.',
+                        severity: 'warning',
+                    });
+                }
+            } else {
+                setSnackbar({
+                    open: true,
+                    message: 'Entrega confirmada com sucesso!',
+                    severity: 'success',
+                });
+            }
         } catch (err: any) {
             console.error('Erro ao confirmar entrega:', err);
             setSnackbar({
@@ -418,402 +424,404 @@ const PedidoDetalhe: React.FC = () => {
         }
     };
 
-    // Função para cancelar pedido e gerenciar estoque
-    const handleCancelarPedidoComEstoque = async () => {
-        if (!pedido) return;
+  // Função para confirmar entrega simplificada (versão antiga, substituída pela completa)
 
-        setAtualizandoStatus(true);
+  // Função para cancelar pedido e gerenciar estoque
+  const handleCancelarPedidoComEstoque = async () => {
+    if (!pedido) return;
 
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) throw new Error('Não autorizado.');
+    setAtualizandoStatus(true);
 
-            // Usar diretamente o endpoint de estoque, que já atualiza status e devolve estoque
-            const estoquePayload = {
-                pedido_id: parseInt(id as string),
-                acao: 'cancelar',
-            };
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Não autorizado.');
 
-            await axios.post(
-                `${API_BASE_URL}/pedidos/estoque`,
-                estoquePayload,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                }
-            );
+      // Usar diretamente o endpoint de estoque, que já atualiza status e devolve estoque
+      const estoquePayload = {
+        pedido_id: parseInt(id as string),
+        acao: 'cancelar',
+      };
 
-            // Atualizar a tela
-            await buscarPedido();
-
-            // Mostrar mensagem de sucesso
-            setSnackbar({
-                open: true,
-                message: 'Pedido cancelado e estoque atualizado com sucesso!',
-                severity: 'success',
-            });
-        } catch (err: any) {
-            console.error('Erro ao cancelar pedido:', err);
-            setSnackbar({
-                open: true,
-                message: err.response?.data || 'Erro ao cancelar pedido. Tente novamente.',
-                severity: 'error',
-            });
-        } finally {
-            setAtualizandoStatus(false);
+      await axios.post(
+        `${API_BASE_URL}/pedidos/estoque`,
+        estoquePayload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
         }
-    };
+      );
 
-    // Voltar para a lista de pedidos
-    const handleVoltar = () => {
-        navigate('/pedidos');
-    };
+      // Atualizar a tela
+      await buscarPedido();
 
-    // Fechar snackbar
-    const handleCloseSnackbar = () => {
-        setSnackbar(prev => ({ ...prev, open: false }));
-    };
-
-    if (loading) {
-        return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-                <CircularProgress />
-            </Box>
-        );
+      // Mostrar mensagem de sucesso
+      setSnackbar({
+        open: true,
+        message: 'Pedido cancelado e estoque atualizado com sucesso!',
+        severity: 'success',
+      });
+    } catch (err: any) {
+      console.error('Erro ao cancelar pedido:', err);
+      setSnackbar({
+        open: true,
+        message: err.response?.data || 'Erro ao cancelar pedido. Tente novamente.',
+        severity: 'error',
+      });
+    } finally {
+      setAtualizandoStatus(false);
     }
+  };
 
-    if (error) {
-        return (
-            <Box>
-                <Alert severity="error" sx={{ mb: 2 }}>
-                    {error}
-                </Alert>
-                <Button startIcon={<ArrowBackIcon />} onClick={handleVoltar}>
-                    Voltar para Pedidos
-                </Button>
-            </Box>
-        );
-    }
+  // Voltar para a lista de pedidos
+  const handleVoltar = () => {
+    navigate('/pedidos');
+  };
 
-    if (!pedido) {
-        return (
-            <Box>
-                <Alert severity="warning">Pedido não encontrado.</Alert>
-                <Button startIcon={<ArrowBackIcon />} onClick={handleVoltar} sx={{ mt: 2 }}>
-                    Voltar para Pedidos
-                </Button>
-            </Box>
-        );
-    }
+  // Fechar snackbar
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
 
+  if (loading) {
     return (
-        <Box>
-            {/* Cabeçalho */}
-            <Box display="flex" alignItems="center" mb={3}>
-                <Button startIcon={<ArrowBackIcon />} onClick={handleVoltar} sx={{ mr: 2 }}>
-                    Voltar
-                </Button>
-                <Typography variant="h4">
-                    Pedido #{pedido.id}
-                    <StatusChip status={pedido.status} sx={{ ml: 2 }} />
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+        <Button startIcon={<ArrowBackIcon />} onClick={handleVoltar}>
+          Voltar para Pedidos
+        </Button>
+      </Box>
+    );
+  }
+
+  if (!pedido) {
+    return (
+      <Box>
+        <Alert severity="warning">Pedido não encontrado.</Alert>
+        <Button startIcon={<ArrowBackIcon />} onClick={handleVoltar} sx={{ mt: 2 }}>
+          Voltar para Pedidos
+        </Button>
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      {/* Cabeçalho */}
+      <Box display="flex" alignItems="center" mb={3}>
+        <Button startIcon={<ArrowBackIcon />} onClick={handleVoltar} sx={{ mr: 2 }}>
+          Voltar
+        </Button>
+        <Typography variant="h4">
+          Pedido #{pedido.id}
+          <StatusChip status={pedido.status} sx={{ ml: 2 }} />
+        </Typography>
+      </Box>
+
+      <Grid container spacing={3}>
+        {/* Informações gerais do pedido */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Typography variant="h6" gutterBottom>
+              Informações do Pedido
+            </Typography>
+
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Data de Criação
                 </Typography>
-            </Box>
-
-            <Grid container spacing={3}>
-                {/* Informações gerais do pedido */}
-                <Grid item xs={12} md={6}>
-                    <Paper sx={{ p: 3, height: '100%' }}>
-                        <Typography variant="h6" gutterBottom>
-                            Informações do Pedido
-                        </Typography>
-
-                        <Grid container spacing={2}>
-                            <Grid item xs={6}>
-                                <Typography variant="subtitle2" color="text.secondary">
-                                    Data de Criação
-                                </Typography>
-                                <Typography variant="body1">{formatDate(pedido.criado_em)}</Typography>
-                            </Grid>
-                            <Grid item xs={6}>
-                                <Typography variant="subtitle2" color="text.secondary">
-                                    Valor Total
-                                </Typography>
-                                <Typography variant="body1" fontWeight="bold">
-                                    {formatCurrency(pedido.valor_total)}
-                                </Typography>
-                            </Grid>
-                            <Grid item xs={6}>
-                                <Typography variant="subtitle2" color="text.secondary">
-                                    Forma de Pagamento
-                                </Typography>
-                                <Typography variant="body1">
-                                    {formaPagamentoMap[pedido.forma_pagamento] || pedido.forma_pagamento}
-                                </Typography>
-                            </Grid>
-                            <Grid item xs={6}>
-                                <Typography variant="subtitle2" color="text.secondary">
-                                    Canal de Venda
-                                </Typography>
-                                <Typography variant="body1">
-                                    {pedido.canal_origem ? (canalOrigemMap[pedido.canal_origem] || pedido.canal_origem) : '-'}
-                                </Typography>
-                            </Grid>
-                            <Grid item xs={6}>
-                                <Typography variant="subtitle2" color="text.secondary">
-                                    Data de Entrega
-                                </Typography>
-                                <Typography variant="body1">
-                                    {pedido.data_entrega ? formatDate(pedido.data_entrega) : 'Não entregue'}
-                                </Typography>
-                            </Grid>
-                            <Grid item xs={6}>
-                                <Typography variant="subtitle2" color="text.secondary">
-                                    Última Atualização
-                                </Typography>
-                                <Typography variant="body1">
-                                    {formatDate(pedido.atualizado_em)}
-                                </Typography>
-                            </Grid>
-                            {pedido.observacoes && (
-                                <Grid item xs={12}>
-                                    <Typography variant="subtitle2" color="text.secondary">
-                                        Observações
-                                    </Typography>
-                                    <Typography variant="body1">
-                                        {pedido.observacoes}
-                                    </Typography>
-                                </Grid>
-                            )}
-                        </Grid>
-
-                        <Divider sx={{ my: 2 }} />
-
-                        <Typography variant="h6" gutterBottom>
-                            Informações de Entrega
-                        </Typography>
-
-                        <Grid container spacing={2}>
-                            <Grid item xs={12}>
-                                <Typography variant="subtitle2" color="text.secondary">
-                                    Endereço de Entrega
-                                </Typography>
-                                <Typography variant="body1">
-                                    {pedido.endereco_entrega}
-                                </Typography>
-                            </Grid>
-                            <Grid item xs={12}>
-                                <Typography variant="subtitle2" color="text.secondary">
-                                    Entregador
-                                </Typography>
-                                <Typography variant="body1">
-                                    {pedido.entregador ? pedido.entregador.nome : 'Não atribuído'}
-                                </Typography>
-                            </Grid>
-                        </Grid>
-                    </Paper>
-                </Grid>
-
-                {/* Informações do cliente e responsáveis */}
-                <Grid item xs={12} md={6}>
-                    <Paper sx={{ p: 3, height: '100%' }}>
-                        <Typography variant="h6" gutterBottom>
-                            Informações do Cliente
-                        </Typography>
-                        <Grid container spacing={2}>
-                            <Grid item xs={12}>
-                                <Typography variant="subtitle2" color="text.secondary">
-                                    Nome
-                                </Typography>
-                                <Typography variant="body1">{pedido.cliente.nome}</Typography>
-                            </Grid>
-                            <Grid item xs={12}>
-                                <Typography variant="subtitle2" color="text.secondary">
-                                    Telefone
-                                </Typography>
-                                <Typography variant="body1">{pedido.cliente.telefone}</Typography>
-                            </Grid>
-                        </Grid>
-
-                        <Divider sx={{ my: 2 }} />
-
-                        <Typography variant="h6" gutterBottom>
-                            Responsáveis
-                        </Typography>
-                        <Grid container spacing={2}>
-                            <Grid item xs={6}>
-                                <Typography variant="subtitle2" color="text.secondary">
-                                    Atendente
-                                </Typography>
-                                <Typography variant="body1">{pedido.atendente.nome}</Typography>
-                            </Grid>
-                            <Grid item xs={6}>
-                                <Typography variant="subtitle2" color="text.secondary">
-                                    Entregador
-                                </Typography>
-                                <Typography variant="body1">
-                                    {pedido.entregador ? pedido.entregador.nome : 'Não atribuído'}
-                                </Typography>
-                            </Grid>
-                        </Grid>
-
-                        <Divider sx={{ my: 2 }} />
-
-                        {/* Ações disponíveis */}
-                        <Box mt={3}>
-                            <Typography variant="h6" gutterBottom>
-                                Ações
-                            </Typography>
-                            <Box display="flex" flexWrap="wrap" gap={1}>
-                                {pedido.status !== 'cancelado' && pedido.status !== 'finalizado' && (
-                                    <Button
-                                        variant="contained"
-                                        color="primary"
-                                        onClick={handleAbrirDialogo}
-                                        disabled={getStatusPermitidos(pedido.status).length === 0}
-                                    >
-                                        Atualizar Status
-                                    </Button>
-                                )}
-                                {pedido.status === 'em_entrega' && (
-                                    <Button
-                                        variant="contained"
-                                        color="success"
-                                        startIcon={<CheckIcon />}
-                                        onClick={handleConfirmarEntregaComEstoque}
-                                    >
-                                        Confirmar Entrega
-                                    </Button>
-                                )}
-                                {pedido.status === 'entregue' && (
-                                    <Button
-                                        variant="contained"
-                                        color="success"
-                                        startIcon={<PaymentIcon />}
-                                        onClick={() => {
-                                            setNovoStatus('finalizado');
-                                            setDialogOpen(true);
-                                        }}
-                                    >
-                                        Finalizar Pedido
-                                    </Button>
-                                )}
-                                {(pedido.status === 'novo' || pedido.status === 'em_preparo' || pedido.status === 'em_entrega') && (
-                                    <Button
-                                        variant="contained"
-                                        color="error"
-                                        startIcon={<CancelIcon />}
-                                        onClick={handleCancelarPedidoComEstoque}
-                                    >
-                                        Cancelar Pedido
-                                    </Button>
-                                )}
-                            </Box>
-                        </Box>
-                    </Paper>
-                </Grid>
-
-                {/* Lista de itens do pedido */}
+                <Typography variant="body1">{formatDate(pedido.criado_em)}</Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Valor Total
+                </Typography>
+                <Typography variant="body1" fontWeight="bold">
+                  {formatCurrency(pedido.valor_total)}
+                </Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Forma de Pagamento
+                </Typography>
+                <Typography variant="body1">
+                  {formaPagamentoMap[pedido.forma_pagamento] || pedido.forma_pagamento}
+                </Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Canal de Venda
+                </Typography>
+                <Typography variant="body1">
+                  {pedido.canal_origem ? (canalOrigemMap[pedido.canal_origem] || pedido.canal_origem) : '-'}
+                </Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Data de Entrega
+                </Typography>
+                <Typography variant="body1">
+                  {pedido.data_entrega ? formatDate(pedido.data_entrega) : 'Não entregue'}
+                </Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Última Atualização
+                </Typography>
+                <Typography variant="body1">
+                  {formatDate(pedido.atualizado_em)}
+                </Typography>
+              </Grid>
+              {pedido.observacoes && (
                 <Grid item xs={12}>
-                    <Paper>
-                        <TableContainer>
-                            <Table>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell>Item</TableCell>
-                                        <TableCell align="center">Quantidade</TableCell>
-                                        <TableCell align="right">Preço Unit.</TableCell>
-                                        <TableCell align="right">Subtotal</TableCell>
-                                        <TableCell align="center">Retorna Botija</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {pedido.itens.map((item) => (
-                                        <TableRow key={item.id}>
-                                            <TableCell>{item.nome_produto}</TableCell>
-                                            <TableCell align="center">{item.quantidade}</TableCell>
-                                            <TableCell align="right">{formatCurrency(item.preco_unitario)}</TableCell>
-                                            <TableCell align="right">{formatCurrency(item.subtotal)}</TableCell>
-                                            <TableCell align="center">
-                                                {item.retorna_botija ? (
-                                                    <Chip label="Sim" color="success" size="small" />
-                                                ) : (
-                                                    <Chip label="Não" variant="outlined" size="small" />
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                    <TableRow>
-                                        <TableCell colSpan={3} align="right" sx={{ fontWeight: 'bold' }}>
-                                            Total:
-                                        </TableCell>
-                                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                                            {formatCurrency(pedido.valor_total)}
-                                        </TableCell>
-                                        <TableCell />
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
-                    </Paper>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Observações
+                  </Typography>
+                  <Typography variant="body1">
+                    {pedido.observacoes}
+                  </Typography>
                 </Grid>
+              )}
             </Grid>
 
-            {/* Diálogo para atualizar status */}
-            <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
-                <DialogTitle>Atualizar Status do Pedido</DialogTitle>
-                <DialogContent>
-                    <TextField
-                        select
-                        label="Novo Status"
-                        value={novoStatus}
-                        onChange={(e) => setNovoStatus(e.target.value)}
-                        fullWidth
-                        sx={{ mt: 2, mb: 2 }}
-                    >
-                        {getStatusPermitidos(pedido.status).map((status) => (
-                            <MenuItem key={status.value} value={status.value}>
-                                {status.label}
-                            </MenuItem>
-                        ))}
-                    </TextField>
+            <Divider sx={{ my: 2 }} />
 
-                    {novoStatus === 'em_entrega' && (
-                        <TextField
-                            select
-                            label="Entregador"
-                            value={entregadorId}
-                            onChange={(e) => setEntregadorId(Number(e.target.value))}
-                            fullWidth
-                            required
-                            sx={{ mb: 2 }}
-                            error={novoStatus === 'em_entrega' && entregadorId === ''}
-                            helperText={
-                                novoStatus === 'em_entrega' && entregadorId === ''
-                                    ? 'Selecione um entregador'
-                                    : ''
-                            }
-                        >
-                            {entregadores.map((entregador) => (
-                                <MenuItem key={entregador.id} value={entregador.id}>
-                                    {entregador.nome}
-                                </MenuItem>
-                            ))}
-                        </TextField>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
-                    <Button
-                        onClick={handleAtualizarStatus}
-                        color="primary"
-                        variant="contained"
-                        disabled={
-                            atualizandoStatus ||
-                            (novoStatus === 'em_entrega' && !entregadorId)
-                        }
-                    >
+            <Typography variant="h6" gutterBottom>
+              Informações de Entrega
+            </Typography>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Endereço de Entrega
+                </Typography>
+                <Typography variant="body1">
+                  {pedido.endereco_entrega}
+                </Typography>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Entregador
+                </Typography>
+                <Typography variant="body1">
+                  {pedido.entregador ? pedido.entregador.nome : 'Não atribuído'}
+                </Typography>
+              </Grid>
+            </Grid>
+          </Paper>
+        </Grid>
+
+        {/* Informações do cliente e responsáveis */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Typography variant="h6" gutterBottom>
+              Informações do Cliente
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Nome
+                </Typography>
+                <Typography variant="body1">{pedido.cliente.nome}</Typography>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Telefone
+                </Typography>
+                <Typography variant="body1">{pedido.cliente.telefone}</Typography>
+              </Grid>
+            </Grid>
+
+            <Divider sx={{ my: 2 }} />
+
+            <Typography variant="h6" gutterBottom>
+              Responsáveis
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Atendente
+                </Typography>
+                <Typography variant="body1">{pedido.atendente.nome}</Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Entregador
+                </Typography>
+                <Typography variant="body1">
+                  {pedido.entregador ? pedido.entregador.nome : 'Não atribuído'}
+                </Typography>
+              </Grid>
+            </Grid>
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* Ações disponíveis */}
+            <Box mt={3}>
+              <Typography variant="h6" gutterBottom>
+                Ações
+              </Typography>
+              <Box display="flex" flexWrap="wrap" gap={1}>
+                {pedido.status !== 'cancelado' && pedido.status !== 'finalizado' && (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleAbrirDialogo}
+                    disabled={getStatusPermitidos(pedido.status).length === 0}
+                  >
+                    Atualizar Status
+                  </Button>
+                )}
+                {pedido.status === 'em_entrega' && (
+                  <Button
+                    variant="contained"
+                    color="success"
+                    startIcon={<CheckIcon />}
+                    onClick={handleConfirmarEntregaCompleta}
+                  >
+                    Confirmar Entrega
+                  </Button>
+                )}
+                {pedido.status === 'entregue' && (
+                  <Button
+                    variant="contained"
+                    color="success"
+                    startIcon={<PaymentIcon />}
+                    onClick={() => {
+                      setNovoStatus('finalizado');
+                      setDialogOpen(true);
+                    }}
+                  >
+                    Finalizar Pedido
+                  </Button>
+                )}
+                {(pedido.status === 'novo' || pedido.status === 'em_preparo' || pedido.status === 'em_entrega') && (
+                  <Button
+                    variant="contained"
+                    color="error"
+                    startIcon={<CancelIcon />}
+                    onClick={handleCancelarPedidoComEstoque}
+                  >
+                    Cancelar Pedido
+                  </Button>
+                )}
+              </Box>
+            </Box>
+          </Paper>
+        </Grid>
+
+        {/* Lista de itens do pedido */}
+        <Grid item xs={12}>
+          <Paper>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Item</TableCell>
+                    <TableCell align="center">Quantidade</TableCell>
+                    <TableCell align="right">Preço Unit.</TableCell>
+                    <TableCell align="right">Subtotal</TableCell>
+                    <TableCell align="center">Retorna Botija</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {pedido.itens.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{item.nome_produto}</TableCell>
+                      <TableCell align="center">{item.quantidade}</TableCell>
+                      <TableCell align="right">{formatCurrency(item.preco_unitario)}</TableCell>
+                      <TableCell align="right">{formatCurrency(item.subtotal)}</TableCell>
+                      <TableCell align="center">
+                        {item.retorna_botija ? (
+                          <Chip label="Sim" color="success" size="small" />
+                        ) : (
+                          <Chip label="Não" variant="outlined" size="small" />
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow>
+                    <TableCell colSpan={3} align="right" sx={{ fontWeight: 'bold' }}>
+                      Total:
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                      {formatCurrency(pedido.valor_total)}
+                    </TableCell>
+                    <TableCell />
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      {/* Diálogo para atualizar status */}
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
+        <DialogTitle>Atualizar Status do Pedido</DialogTitle>
+        <DialogContent>
+          <TextField
+            select
+            label="Novo Status"
+            value={novoStatus}
+            onChange={(e) => setNovoStatus(e.target.value)}
+            fullWidth
+            sx={{ mt: 2, mb: 2 }}
+          >
+            {getStatusPermitidos(pedido.status).map((status) => (
+              <MenuItem key={status.value} value={status.value}>
+                {status.label}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          {novoStatus === 'em_entrega' && (
+            <TextField
+              select
+              label="Entregador"
+              value={entregadorId}
+              onChange={(e) => setEntregadorId(Number(e.target.value))}
+              fullWidth
+              required
+              sx={{ mb: 2 }}
+              error={novoStatus === 'em_entrega' && entregadorId === ''}
+              helperText={
+                novoStatus === 'em_entrega' && entregadorId === ''
+                  ? 'Selecione um entregador'
+                  : ''
+              }
+            >
+              {entregadores.map((entregador) => (
+                <MenuItem key={entregador.id} value={entregador.id}>
+                  {entregador.nome}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
+          <Button
+            onClick={handleAtualizarStatus}
+            color="primary"
+            variant="contained"
+            disabled={
+              atualizandoStatus ||
+              (novoStatus === 'em_entrega' && !entregadorId)
+            }
+          >
                         {atualizandoStatus ? <CircularProgress size={24} /> : 'Confirmar'}
                     </Button>
                 </DialogActions>
@@ -835,4 +843,3 @@ const PedidoDetalhe: React.FC = () => {
 };
 
 export default PedidoDetalhe;
-
