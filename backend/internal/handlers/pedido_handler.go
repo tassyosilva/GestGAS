@@ -852,68 +852,72 @@ func buscarItensPedido(db *sql.DB, pedidoID int) ([]models.ItemPedido, error) {
 
 // buscarPedidoDetalhado é uma função auxiliar para buscar um pedido com todos os detalhes necessários
 func buscarPedidoDetalhado(db *sql.DB, pedidoID int) (models.PedidoResponse, error) {
-	fmt.Println("Iniciando buscarPedidoDetalhado para pedido ID:", pedidoID)
-	var resp models.PedidoResponse
+    fmt.Println("Iniciando buscarPedidoDetalhado para pedido ID:", pedidoID)
+    var resp models.PedidoResponse
 
-	// Buscar dados do pedido com cliente, atendente e entregador
-	var query = `
-		SELECT 
-			p.id, p.cliente_id, c.nome, c.telefone,
-			p.atendente_id, a.nome, a.perfil,
-			p.entregador_id, e.nome, e.perfil,
-			p.status, p.forma_pagamento, p.valor_total,
-			p.observacoes, p.endereco_entrega,
-			p.canal_origem, p.data_entrega,
-			p.criado_em, p.atualizado_em
-		FROM pedidos p
-		JOIN clientes c ON p.cliente_id = c.id
-		JOIN usuarios a ON p.atendente_id = a.id
-		LEFT JOIN usuarios e ON p.entregador_id = e.id
-		WHERE p.id = $1
-	`
-	fmt.Println("Executando query principal para buscar pedido detalhado")
+    // Buscar dados do pedido com cliente, atendente e entregador
+    var query = `
+        SELECT 
+            p.id, p.cliente_id, c.nome, c.telefone,
+            p.atendente_id, a.nome, a.perfil,
+            p.entregador_id, e.nome, e.perfil,
+            p.status, p.forma_pagamento, p.valor_total,
+            p.observacoes, p.endereco_entrega,
+            p.canal_origem, p.data_entrega, p.motivo_cancelamento,
+            p.criado_em, p.atualizado_em
+        FROM pedidos p
+        JOIN clientes c ON p.cliente_id = c.id
+        JOIN usuarios a ON p.atendente_id = a.id
+        LEFT JOIN usuarios e ON p.entregador_id = e.id
+        WHERE p.id = $1
+    `
+    fmt.Println("Executando query principal para buscar pedido detalhado")
 
-	var entregadorID sql.NullInt64
-	var entregadorNome, entregadorPerfil sql.NullString
-	var dataEntrega sql.NullTime
-	var observacoes, canalOrigem sql.NullString
+    var entregadorID sql.NullInt64
+    var entregadorNome, entregadorPerfil sql.NullString
+    var dataEntrega sql.NullTime
+    var observacoes, canalOrigem, motivoCancelamento sql.NullString
 
-	err := db.QueryRow(query, pedidoID).Scan(
-		&resp.ID, &resp.Cliente.ID, &resp.Cliente.Nome, &resp.Cliente.Telefone,
-		&resp.Atendente.ID, &resp.Atendente.Nome, &resp.Atendente.Perfil,
-		&entregadorID, &entregadorNome, &entregadorPerfil,
-		&resp.Status, &resp.FormaPagamento, &resp.ValorTotal,
-		&observacoes, &resp.EnderecoEntrega,
-		&canalOrigem, &dataEntrega,
-		&resp.CriadoEm, &resp.AtualizadoEm,
-	)
-	if err != nil {
-		fmt.Println("ERRO ao buscar dados do pedido:", err)
-		return resp, err
-	}
-	fmt.Println("Dados principais do pedido obtidos com sucesso")
+    err := db.QueryRow(query, pedidoID).Scan(
+        &resp.ID, &resp.Cliente.ID, &resp.Cliente.Nome, &resp.Cliente.Telefone,
+        &resp.Atendente.ID, &resp.Atendente.Nome, &resp.Atendente.Perfil,
+        &entregadorID, &entregadorNome, &entregadorPerfil,
+        &resp.Status, &resp.FormaPagamento, &resp.ValorTotal,
+        &observacoes, &resp.EnderecoEntrega,
+        &canalOrigem, &dataEntrega, &motivoCancelamento,
+        &resp.CriadoEm, &resp.AtualizadoEm,
+    )
+    if err != nil {
+        fmt.Println("ERRO ao buscar dados do pedido:", err)
+        return resp, err
+    }
+    fmt.Println("Dados principais do pedido obtidos com sucesso")
 
-	// Converter tipos nulos
-	if entregadorID.Valid {
-		entregador := models.UsuarioBasico{
-			ID:     int(entregadorID.Int64),
-			Nome:   entregadorNome.String,
-			Perfil: entregadorPerfil.String,
-		}
-		resp.Entregador = &entregador
-		fmt.Println("Entregador atribuído ao pedido:", entregadorNome.String)
-	}
-	if dataEntrega.Valid {
-		resp.DataEntrega = &dataEntrega.Time
-		fmt.Println("Data de entrega registrada:", dataEntrega.Time)
-	}
-	if observacoes.Valid {
-		resp.Observacoes = observacoes.String
-	}
-	if canalOrigem.Valid {
-		resp.CanalOrigem = models.CanalOrigem(canalOrigem.String)
-		fmt.Println("Canal de origem:", canalOrigem.String)
-	}
+    // Converter tipos nulos
+    if entregadorID.Valid {
+        entregador := models.UsuarioBasico{
+            ID:     int(entregadorID.Int64),
+            Nome:   entregadorNome.String,
+            Perfil: entregadorPerfil.String,
+        }
+        resp.Entregador = &entregador
+        fmt.Println("Entregador atribuído ao pedido:", entregadorNome.String)
+    }
+    if dataEntrega.Valid {
+        resp.DataEntrega = &dataEntrega.Time
+        fmt.Println("Data de entrega registrada:", dataEntrega.Time)
+    }
+    if observacoes.Valid {
+        resp.Observacoes = observacoes.String
+    }
+    if canalOrigem.Valid {
+        resp.CanalOrigem = models.CanalOrigem(canalOrigem.String)
+        fmt.Println("Canal de origem:", canalOrigem.String)
+    }
+    if motivoCancelamento.Valid {
+        resp.MotivoCancelamento = motivoCancelamento.String
+        fmt.Println("Motivo do cancelamento:", motivoCancelamento.String)
+    }
 
 	// Buscar itens do pedido
 	fmt.Println("Buscando itens do pedido")

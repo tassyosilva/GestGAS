@@ -106,6 +106,7 @@ type PedidoResponse struct {
 	EnderecoEntrega string         `json:"endereco_entrega"`
 	CanalOrigem    CanalOrigem    `json:"canal_origem"`
 	DataEntrega    *time.Time     `json:"data_entrega,omitempty"`
+	MotivoCancelamento string          `json:"motivo_cancelamento,omitempty"`
 	Itens          []ItemPedido   `json:"itens"`
 	CriadoEm       time.Time      `json:"criado_em"`
 	AtualizadoEm   time.Time      `json:"atualizado_em"`

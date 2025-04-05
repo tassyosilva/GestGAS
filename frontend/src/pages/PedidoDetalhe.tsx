@@ -593,6 +593,7 @@ const PedidoDetalhe: React.FC = () => {
                   {formatDate(pedido.atualizado_em)}
                 </Typography>
               </Grid>
+
               {pedido.observacoes && (
                 <Grid item xs={12}>
                   <Typography variant="subtitle2" color="text.secondary">
@@ -600,17 +601,6 @@ const PedidoDetalhe: React.FC = () => {
                   </Typography>
                   <Typography variant="body1">
                     {pedido.observacoes}
-                  </Typography>
-                </Grid>
-              )}
-              {/* Motivo de cancelamento (apenas se o pedido estiver cancelado) */}
-              {pedido.status === 'cancelado' && pedido.motivo_cancelamento && (
-                <Grid item xs={12}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Motivo do Cancelamento
-                  </Typography>
-                  <Typography variant="body1" sx={{ color: 'error.main' }}>
-                    {pedido.motivo_cancelamento}
                   </Typography>
                 </Grid>
               )}
@@ -688,56 +678,69 @@ const PedidoDetalhe: React.FC = () => {
 
             <Divider sx={{ my: 2 }} />
 
-            {/* Ações disponíveis */}
+            {/* Ações ou Motivo de Cancelamento */}
             <Box mt={3}>
-              <Typography variant="h6" gutterBottom>
-                Ações
-              </Typography>
-              <Box display="flex" flexWrap="wrap" gap={1}>
-                {pedido.status !== 'cancelado' && pedido.status !== 'finalizado' && (
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={handleAbrirDialogo}
-                    disabled={getStatusPermitidos(pedido.status).length === 0}
-                  >
-                    Atualizar Status
-                  </Button>
-                )}
-                {pedido.status === 'em_entrega' && (
-                  <Button
-                    variant="contained"
-                    color="success"
-                    startIcon={<CheckIcon />}
-                    onClick={handleConfirmarEntregaCompleta}
-                  >
-                    Confirmar Entrega
-                  </Button>
-                )}
-                {pedido.status === 'entregue' && (
-                  <Button
-                    variant="contained"
-                    color="success"
-                    startIcon={<PaymentIcon />}
-                    onClick={() => {
-                      setNovoStatus('finalizado');
-                      setDialogOpen(true);
-                    }}
-                  >
-                    Finalizar Pedido
-                  </Button>
-                )}
-                {(pedido.status === 'novo' || pedido.status === 'em_preparo' || pedido.status === 'em_entrega') && (
-                  <Button
-                    variant="contained"
-                    color="error"
-                    startIcon={<CancelIcon />}
-                    onClick={handleAbrirDialogoCancelamento}
-                  >
-                    Cancelar Pedido
-                  </Button>
-                )}
-              </Box>
+              {pedido.status === 'cancelado' ? (
+                <>
+                  <Typography variant="h6" gutterBottom color="error">
+                    Motivo do Cancelamento
+                  </Typography>
+                  <Typography variant="body1" sx={{ mt: 1 }}>
+                    {pedido.motivo_cancelamento || 'Nenhum motivo registrado'}
+                  </Typography>
+                </>
+              ) : (
+                <>
+                  <Typography variant="h6" gutterBottom>
+                    Ações
+                  </Typography>
+                  <Box display="flex" flexWrap="wrap" gap={1}>
+                    {pedido.status !== 'cancelado' && pedido.status !== 'finalizado' && (
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handleAbrirDialogo}
+                        disabled={getStatusPermitidos(pedido.status).length === 0}
+                      >
+                        Atualizar Status
+                      </Button>
+                    )}
+                    {pedido.status === 'em_entrega' && (
+                      <Button
+                        variant="contained"
+                        color="success"
+                        startIcon={<CheckIcon />}
+                        onClick={handleConfirmarEntregaCompleta}
+                      >
+                        Confirmar Entrega
+                      </Button>
+                    )}
+                    {pedido.status === 'entregue' && (
+                      <Button
+                        variant="contained"
+                        color="success"
+                        startIcon={<PaymentIcon />}
+                        onClick={() => {
+                          setNovoStatus('finalizado');
+                          setDialogOpen(true);
+                        }}
+                      >
+                        Finalizar Pedido
+                      </Button>
+                    )}
+                    {(pedido.status === 'novo' || pedido.status === 'em_preparo' || pedido.status === 'em_entrega') && (
+                      <Button
+                        variant="contained"
+                        color="error"
+                        startIcon={<CancelIcon />}
+                        onClick={handleAbrirDialogoCancelamento}
+                      >
+                        Cancelar Pedido
+                      </Button>
+                    )}
+                  </Box>
+                </>
+              )}
             </Box>
           </Paper>
         </Grid>
