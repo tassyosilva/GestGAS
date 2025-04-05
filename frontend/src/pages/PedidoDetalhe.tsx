@@ -1,34 +1,34 @@
 import React, { useState, useEffect } from 'react';
 
 import {
-    Box,
-    Typography,
-    Paper,
-    Grid,
-    Chip,
-    Button,
-    Divider,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    CircularProgress,
-    Alert,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
-    MenuItem,
-    Snackbar,
+  Box,
+  Typography,
+  Paper,
+  Grid,
+  Chip,
+  Button,
+  Divider,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  CircularProgress,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
+  Snackbar,
 } from '@mui/material';
 import {
-    ArrowBack as ArrowBackIcon,
-    Check as CheckIcon,
-    Cancel as CancelIcon,
-    MonetizationOn as PaymentIcon,
+  ArrowBack as ArrowBackIcon,
+  Check as CheckIcon,
+  Cancel as CancelIcon,
+  MonetizationOn as PaymentIcon,
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import API_BASE_URL from '../config/api';
@@ -36,402 +36,407 @@ import axios from 'axios';
 
 // Interfaces
 interface ClienteBasico {
-    id: number;
-    nome: string;
-    telefone: string;
+  id: number;
+  nome: string;
+  telefone: string;
 }
 
 interface UsuarioBasico {
-    id: number;
-    nome: string;
-    perfil: string;
+  id: number;
+  nome: string;
+  perfil: string;
 }
 
 interface ItemPedido {
-    id: number;
-    produto_id: number;
-    nome_produto: string;
-    quantidade: number;
-    preco_unitario: number;
-    subtotal: number;
-    retorna_botija: boolean;
+  id: number;
+  produto_id: number;
+  nome_produto: string;
+  quantidade: number;
+  preco_unitario: number;
+  subtotal: number;
+  retorna_botija: boolean;
 }
 
 interface PedidoDetalhado {
-    id: number;
-    cliente: ClienteBasico;
-    atendente: UsuarioBasico;
-    entregador?: UsuarioBasico;
-    status: string;
-    forma_pagamento: string;
-    valor_total: number;
-    observacoes?: string;
-    endereco_entrega: string;
-    canal_origem?: string;
-    data_entrega?: string;
-    itens: ItemPedido[];
-    criado_em: string;
-    atualizado_em: string;
+  id: number;
+  cliente: ClienteBasico;
+  atendente: UsuarioBasico;
+  entregador?: UsuarioBasico;
+  status: string;
+  forma_pagamento: string;
+  valor_total: number;
+  observacoes?: string;
+  endereco_entrega: string;
+  canal_origem?: string;
+  data_entrega?: string;
+  motivo_cancelamento?: string;
+  itens: ItemPedido[];
+  criado_em: string;
+  atualizado_em: string;
 }
 
 interface Entregador {
-    id: number;
-    nome: string;
+  id: number;
+  nome: string;
 }
 
 const formatCurrency = (value: number): string => {
-    return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-    }).format(value);
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(value);
 };
 
 const formatDate = (dateString?: string): string => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    }).format(date);
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
 };
 
 // Componente para exibir o status do pedido com cores
 interface StatusChipProps {
-    status: string;
-    sx?: React.CSSProperties | any;
+  status: string;
+  sx?: React.CSSProperties | any;
 }
 
 const StatusChip: React.FC<StatusChipProps> = ({ status, sx }) => {
-    let color:
-        | 'default'
-        | 'primary'
-        | 'secondary'
-        | 'error'
-        | 'info'
-        | 'success'
-        | 'warning' = 'default';
-    let label = status;
+  let color:
+    | 'default'
+    | 'primary'
+    | 'secondary'
+    | 'error'
+    | 'info'
+    | 'success'
+    | 'warning' = 'default';
+  let label = status;
 
-    switch (status) {
-        case 'novo':
-            color = 'info';
-            label = 'Novo';
-            break;
-        case 'em_preparo':
-            color = 'warning';
-            label = 'Em Preparo';
-            break;
-        case 'em_entrega':
-            color = 'primary';
-            label = 'Em Entrega';
-            break;
-        case 'entregue':
-            color = 'success';
-            label = 'Entregue';
-            break;
-        case 'finalizado':
-            color = 'success';
-            label = 'Finalizado';
-            break;
-        case 'cancelado':
-            color = 'error';
-            label = 'Cancelado';
-            break;
-    }
+  switch (status) {
+    case 'novo':
+      color = 'info';
+      label = 'Novo';
+      break;
+    case 'em_preparo':
+      color = 'warning';
+      label = 'Em Preparo';
+      break;
+    case 'em_entrega':
+      color = 'primary';
+      label = 'Em Entrega';
+      break;
+    case 'entregue':
+      color = 'success';
+      label = 'Entregue';
+      break;
+    case 'finalizado':
+      color = 'success';
+      label = 'Finalizado';
+      break;
+    case 'cancelado':
+      color = 'error';
+      label = 'Cancelado';
+      break;
+  }
 
-    return <Chip label={label} color={color} sx={sx} />;
+  return <Chip label={label} color={color} sx={sx} />;
 };
 
 // Mapeamento para exibição das formas de pagamento
 const formaPagamentoMap: { [key: string]: string } = {
-    dinheiro: 'Dinheiro',
-    cartao_credito: 'Cartão de Crédito',
-    cartao_debito: 'Cartão de Débito',
-    pix: 'PIX',
-    fiado: 'Fiado',
+  dinheiro: 'Dinheiro',
+  cartao_credito: 'Cartão de Crédito',
+  cartao_debito: 'Cartão de Débito',
+  pix: 'PIX',
+  fiado: 'Fiado',
 };
 
 // Mapeamento de canais de origem
 const canalOrigemMap: { [key: string]: string } = {
-    whatsapp: 'WhatsApp',
-    telefone: 'Telefone',
-    presencial: 'Presencial',
-    aplicativo: 'Aplicativo',
+  whatsapp: 'WhatsApp',
+  telefone: 'Telefone',
+  presencial: 'Presencial',
+  aplicativo: 'Aplicativo',
 };
 
 const PedidoDetalhe: React.FC = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
-    const [pedido, setPedido] = useState<PedidoDetalhado | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [pedido, setPedido] = useState<PedidoDetalhado | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    // Estados para diálogo de atualização de status
-    const [dialogOpen, setDialogOpen] = useState(false);
-    const [novoStatus, setNovoStatus] = useState('');
-    const [entregadorId, setEntregadorId] = useState<number | ''>('');
-    const [entregadores, setEntregadores] = useState<Entregador[]>([]);
-    const [atualizandoStatus, setAtualizandoStatus] = useState(false);
+  // Estados para diálogo de atualização de status
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [novoStatus, setNovoStatus] = useState('');
+  const [entregadorId, setEntregadorId] = useState<number | ''>('');
+  const [entregadores, setEntregadores] = useState<Entregador[]>([]);
+  const [atualizandoStatus, setAtualizandoStatus] = useState(false);
 
-    // Estado para snackbar de feedback
-    const [snackbar, setSnackbar] = useState({
-        open: false,
-        message: '',
-        severity: 'success' as 'success' | 'error' | 'warning',
-    });
+  // Estados para diálogo de cancelamento
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [motivoCancelamento, setMotivoCancelamento] = useState('');
 
-    // Buscar dados do pedido
-    const buscarPedido = async () => {
-        setLoading(true);
-        setError(null);
+  // Estado para snackbar de feedback
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'warning',
+  });
 
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                setError('Não autorizado. Faça login para continuar.');
-                setLoading(false);
-                return;
-            }
+  // Buscar dados do pedido
+  const buscarPedido = async () => {
+    setLoading(true);
+    setError(null);
 
-            const response = await axios.get<PedidoDetalhado>(
-                `${API_BASE_URL}/pedidos/${id}`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Não autorizado. Faça login para continuar.');
+        setLoading(false);
+        return;
+      }
 
-            setPedido(response.data);
-        } catch (err: any) {
-            console.error('Erro ao buscar pedido:', err);
-            setError(err.response?.data || 'Não foi possível carregar o pedido. Tente novamente mais tarde.');
-        } finally {
-            setLoading(false);
+      const response = await axios.get<PedidoDetalhado>(
+        `${API_BASE_URL}/pedidos/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
-    };
+      );
 
-    // Buscar lista de entregadores
-    const buscarEntregadores = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
+      setPedido(response.data);
+    } catch (err: any) {
+      console.error('Erro ao buscar pedido:', err);
+      setError(err.response?.data || 'Não foi possível carregar o pedido. Tente novamente mais tarde.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            // Supondo que haja um endpoint para listar usuários com perfil de entregador
-            const response = await axios.get<Entregador[]>(
-                `${API_BASE_URL}/entregadores`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
+  // Buscar lista de entregadores
+  const buscarEntregadores = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
 
-            setEntregadores(response.data);
-        } catch (err) {
-            console.error('Erro ao buscar entregadores:', err);
-            // Alguns entregadores padrão para teste
-            setEntregadores([
-                { id: 1, nome: 'Roberto Entregador' },
-                { id: 2, nome: 'Marcos Entregador' },
-            ]);
+      // Supondo que haja um endpoint para listar usuários com perfil de entregador
+      const response = await axios.get<Entregador[]>(
+        `${API_BASE_URL}/entregadores`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
-    };
+      );
 
-    // Carregar dados ao montar o componente
-    useEffect(() => {
-        buscarPedido();
-        buscarEntregadores();
-    }, [id]);
+      setEntregadores(response.data);
+    } catch (err) {
+      console.error('Erro ao buscar entregadores:', err);
+      // Alguns entregadores padrão para teste
+      setEntregadores([
+        { id: 1, nome: 'Roberto Entregador' },
+        { id: 2, nome: 'Marcos Entregador' },
+      ]);
+    }
+  };
 
-    // Validar transição de status
-    const validarTransicaoStatus = (atual: string, novo: string): boolean => {
-        switch (atual) {
-            case 'novo':
-                return novo === 'em_preparo' || novo === 'cancelado';
-            case 'em_preparo':
-                return novo === 'em_entrega' || novo === 'cancelado';
-            case 'em_entrega':
-                return novo === 'entregue' || novo === 'cancelado';
-            case 'entregue':
-                return novo === 'finalizado';
-            case 'cancelado':
-            case 'finalizado':
-                return false; // Estados finais, não podem ser alterados
-            default:
-                return false;
-        }
-    };
+  // Carregar dados ao montar o componente
+  useEffect(() => {
+    buscarPedido();
+    buscarEntregadores();
+  }, [id]);
 
-    // Obter status permitidos para transição
-    const getStatusPermitidos = (statusAtual: string): { value: string; label: string }[] => {
-        const todosStatus = [
-            { value: 'novo', label: 'Novo' },
-            { value: 'em_preparo', label: 'Em Preparo' },
-            { value: 'em_entrega', label: 'Em Entrega' },
-            { value: 'entregue', label: 'Entregue' },
-            { value: 'finalizado', label: 'Finalizado' },
-            { value: 'cancelado', label: 'Cancelado' },
-        ];
+  // Validar transição de status
+  const validarTransicaoStatus = (atual: string, novo: string): boolean => {
+    switch (atual) {
+      case 'novo':
+        return novo === 'em_preparo' || novo === 'cancelado';
+      case 'em_preparo':
+        return novo === 'em_entrega' || novo === 'cancelado';
+      case 'em_entrega':
+        return novo === 'entregue' || novo === 'cancelado';
+      case 'entregue':
+        return novo === 'finalizado';
+      case 'cancelado':
+      case 'finalizado':
+        return false; // Estados finais, não podem ser alterados
+      default:
+        return false;
+    }
+  };
 
-        return todosStatus.filter(status =>
-            validarTransicaoStatus(statusAtual, status.value)
-        );
-    };
+  // Obter status permitidos para transição
+  const getStatusPermitidos = (statusAtual: string): { value: string; label: string }[] => {
+    const todosStatus = [
+      { value: 'novo', label: 'Novo' },
+      { value: 'em_preparo', label: 'Em Preparo' },
+      { value: 'em_entrega', label: 'Em Entrega' },
+      { value: 'entregue', label: 'Entregue' },
+      { value: 'finalizado', label: 'Finalizado' },
+      { value: 'cancelado', label: 'Cancelado' },
+    ];
 
-    // Abrir diálogo para atualizar status
-    const handleAbrirDialogo = () => {
-        if (!pedido) return;
+    return todosStatus.filter(status =>
+      validarTransicaoStatus(statusAtual, status.value)
+    );
+  };
 
-        // Definir o novo status para o primeiro permitido por padrão
-        const statusPermitidos = getStatusPermitidos(pedido.status);
-        if (statusPermitidos.length > 0) {
-            setNovoStatus(statusPermitidos[0].value);
-        }
-
-        setDialogOpen(true);
-    };
-
-    // Atualizar status do pedido
-    const handleAtualizarStatus = async () => {
-        if (!pedido || !novoStatus) return;
-
-        setAtualizandoStatus(true);
-
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) throw new Error('Não autorizado.');
-
-            const payload: any = {
-                status: novoStatus,
-            };
-
-            // Adicionar entregador se estiver indo para em_entrega
-            if (novoStatus === 'em_entrega' && entregadorId) {
-                payload.entregador_id = entregadorId;
-            }
-
-            await axios.put(
-                `${API_BASE_URL}/pedidos/${id}/status`,
-                payload,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                }
-            );
-
-            // Atualizar a tela
-            await buscarPedido();
-
-            // Mostrar mensagem de sucesso
-            setSnackbar({
-                open: true,
-                message: 'Status atualizado com sucesso!',
-                severity: 'success',
-            });
-
-            // Fechar diálogo
-            setDialogOpen(false);
-        } catch (err: any) {
-            console.error('Erro ao atualizar status:', err);
-
-            setSnackbar({
-                open: true,
-                message: err.response?.data || 'Erro ao atualizar status. Tente novamente.',
-                severity: 'error',
-            });
-        } finally {
-            setAtualizandoStatus(false);
-        }
-    };
-
-    // Função para registrar botijas vazias
-
-    // Função para confirmar entrega e registrar botijas vazias
-    const handleConfirmarEntregaCompleta = async () => {
-        if (!pedido) return;
-        setAtualizandoStatus(true);
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) throw new Error('Não autorizado.');
-
-            // Primeiro confirmar a entrega
-            await axios.post(
-                `${API_BASE_URL}/pedidos/confirmar-entrega`,
-                { pedido_id: parseInt(id as string) },
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                }
-            );
-
-            // Atualizar a tela para mostrar o pedido como entregue
-            await buscarPedido();
-
-            // Agora registrar as botijas vazias (se houver)
-            // Verificar se há algum item com retorna_botija = true
-            const temBotijasParaRetornar = pedido.itens.some(item => item.retorna_botija);
-
-            if (temBotijasParaRetornar) {
-                try {
-                    await axios.post(
-                        `${API_BASE_URL}/pedidos/registrar-botijas`,
-                        { pedido_id: parseInt(id as string) },
-                        {
-                            headers: {
-                                Authorization: `Bearer ${token}`,
-                                'Content-Type': 'application/json',
-                            },
-                        }
-                    );
-
-                    setSnackbar({
-                        open: true,
-                        message: 'Entrega confirmada e botijas vazias registradas com sucesso!',
-                        severity: 'success',
-                    });
-                } catch (botijasErr) {
-                    console.error('Erro ao registrar botijas vazias:', botijasErr);
-                    setSnackbar({
-                        open: true,
-                        message: 'Entrega confirmada, mas houve um erro ao registrar botijas vazias.',
-                        severity: 'warning',
-                    });
-                }
-            } else {
-                setSnackbar({
-                    open: true,
-                    message: 'Entrega confirmada com sucesso!',
-                    severity: 'success',
-                });
-            }
-        } catch (err: any) {
-            console.error('Erro ao confirmar entrega:', err);
-            setSnackbar({
-                open: true,
-                message: err.response?.data || 'Erro ao confirmar entrega. Tente novamente.',
-                severity: 'error',
-            });
-        } finally {
-            setAtualizandoStatus(false);
-        }
-    };
-
-  // Função para confirmar entrega simplificada (versão antiga, substituída pela completa)
-
-  // Função para cancelar pedido e gerenciar estoque
-  const handleCancelarPedidoComEstoque = async () => {
+  // Abrir diálogo para atualizar status
+  const handleAbrirDialogo = () => {
     if (!pedido) return;
+
+    // Definir o novo status para o primeiro permitido por padrão
+    const statusPermitidos = getStatusPermitidos(pedido.status);
+    if (statusPermitidos.length > 0) {
+      setNovoStatus(statusPermitidos[0].value);
+    }
+
+    setDialogOpen(true);
+  };
+
+  // Abrir diálogo de cancelamento
+  const handleAbrirDialogoCancelamento = () => {
+    setCancelDialogOpen(true);
+    setMotivoCancelamento('');
+  };
+
+  // Atualizar status do pedido
+  const handleAtualizarStatus = async () => {
+    if (!pedido || !novoStatus) return;
 
     setAtualizandoStatus(true);
 
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Não autorizado.');
+
+      const payload: any = {
+        status: novoStatus,
+      };
+
+      // Adicionar entregador se estiver indo para em_entrega
+      if (novoStatus === 'em_entrega' && entregadorId) {
+        payload.entregador_id = entregadorId;
+      }
+
+      await axios.put(
+        `${API_BASE_URL}/pedidos/${id}/status`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      // Atualizar a tela
+      await buscarPedido();
+
+      // Mostrar mensagem de sucesso
+      setSnackbar({
+        open: true,
+        message: 'Status atualizado com sucesso!',
+        severity: 'success',
+      });
+
+      // Fechar diálogo
+      setDialogOpen(false);
+    } catch (err: any) {
+      console.error('Erro ao atualizar status:', err);
+
+      setSnackbar({
+        open: true,
+        message: err.response?.data || 'Erro ao atualizar status. Tente novamente.',
+        severity: 'error',
+      });
+    } finally {
+      setAtualizandoStatus(false);
+    }
+  };
+
+  // Função para confirmar entrega e registrar botijas vazias
+  const handleConfirmarEntregaCompleta = async () => {
+    if (!pedido) return;
+    setAtualizandoStatus(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Não autorizado.');
+
+      // Primeiro confirmar a entrega
+      await axios.post(
+        `${API_BASE_URL}/pedidos/confirmar-entrega`,
+        { pedido_id: parseInt(id as string) },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      // Atualizar a tela para mostrar o pedido como entregue
+      await buscarPedido();
+
+      // Agora registrar as botijas vazias (se houver)
+      // Verificar se há algum item com retorna_botija = true
+      const temBotijasParaRetornar = pedido.itens.some(item => item.retorna_botija);
+
+      if (temBotijasParaRetornar) {
+        try {
+          await axios.post(
+            `${API_BASE_URL}/pedidos/registrar-botijas`,
+            { pedido_id: parseInt(id as string) },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          setSnackbar({
+            open: true,
+            message: 'Entrega confirmada e botijas vazias registradas com sucesso!',
+            severity: 'success',
+          });
+        } catch (botijasErr) {
+          console.error('Erro ao registrar botijas vazias:', botijasErr);
+          setSnackbar({
+            open: true,
+            message: 'Entrega confirmada, mas houve um erro ao registrar botijas vazias.',
+            severity: 'warning',
+          });
+        }
+      } else {
+        setSnackbar({
+          open: true,
+          message: 'Entrega confirmada com sucesso!',
+          severity: 'success',
+        });
+      }
+    } catch (err: any) {
+      console.error('Erro ao confirmar entrega:', err);
+      setSnackbar({
+        open: true,
+        message: err.response?.data || 'Erro ao confirmar entrega. Tente novamente.',
+        severity: 'error',
+      });
+    } finally {
+      setAtualizandoStatus(false);
+    }
+  };
+
+  // Função para cancelar pedido e gerenciar estoque
+  const handleCancelarPedidoComEstoque = async () => {
+    if (!pedido || !motivoCancelamento.trim()) return;
+    setAtualizandoStatus(true);
     try {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('Não autorizado.');
@@ -440,6 +445,7 @@ const PedidoDetalhe: React.FC = () => {
       const estoquePayload = {
         pedido_id: parseInt(id as string),
         acao: 'cancelar',
+        motivo_cancelamento: motivoCancelamento.trim()
       };
 
       await axios.post(
@@ -462,6 +468,9 @@ const PedidoDetalhe: React.FC = () => {
         message: 'Pedido cancelado e estoque atualizado com sucesso!',
         severity: 'success',
       });
+
+      // Fechar o diálogo de cancelamento
+      setCancelDialogOpen(false);
     } catch (err: any) {
       console.error('Erro ao cancelar pedido:', err);
       setSnackbar({
@@ -594,6 +603,17 @@ const PedidoDetalhe: React.FC = () => {
                   </Typography>
                 </Grid>
               )}
+              {/* Motivo de cancelamento (apenas se o pedido estiver cancelado) */}
+              {pedido.status === 'cancelado' && pedido.motivo_cancelamento && (
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Motivo do Cancelamento
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: 'error.main' }}>
+                    {pedido.motivo_cancelamento}
+                  </Typography>
+                </Grid>
+              )}
             </Grid>
 
             <Divider sx={{ my: 2 }} />
@@ -712,7 +732,7 @@ const PedidoDetalhe: React.FC = () => {
                     variant="contained"
                     color="error"
                     startIcon={<CancelIcon />}
-                    onClick={handleCancelarPedidoComEstoque}
+                    onClick={handleAbrirDialogoCancelamento}
                   >
                     Cancelar Pedido
                   </Button>
@@ -822,24 +842,59 @@ const PedidoDetalhe: React.FC = () => {
               (novoStatus === 'em_entrega' && !entregadorId)
             }
           >
-                        {atualizandoStatus ? <CircularProgress size={24} /> : 'Confirmar'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            {atualizandoStatus ? <CircularProgress size={24} /> : 'Confirmar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-            {/* Snackbar para feedback */}
-            <Snackbar
-                open={snackbar.open}
-                autoHideDuration={6000}
-                onClose={handleCloseSnackbar}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-            >
-                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
-                    {snackbar.message}
-                </Alert>
-            </Snackbar>
-        </Box>
-    );
+      {/* Diálogo de cancelamento */}
+      <Dialog open={cancelDialogOpen} onClose={() => setCancelDialogOpen(false)}>
+        <DialogTitle>Cancelar Pedido</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" gutterBottom>
+            Informe o motivo do cancelamento:
+          </Typography>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Motivo do Cancelamento"
+            type="text"
+            fullWidth
+            multiline
+            rows={4}
+            value={motivoCancelamento}
+            onChange={(e) => setMotivoCancelamento(e.target.value)}
+            required
+            error={!motivoCancelamento.trim()}
+            helperText={!motivoCancelamento.trim() ? 'O motivo do cancelamento é obrigatório' : ''}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCancelDialogOpen(false)}>Voltar</Button>
+          <Button
+            onClick={handleCancelarPedidoComEstoque}
+            color="error"
+            variant="contained"
+            disabled={atualizandoStatus || !motivoCancelamento.trim()}
+          >
+            {atualizandoStatus ? <CircularProgress size={24} /> : 'Confirmar Cancelamento'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar para feedback */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
 };
 
 export default PedidoDetalhe;

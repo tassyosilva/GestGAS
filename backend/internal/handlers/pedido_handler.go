@@ -658,11 +658,19 @@ func AtualizarStatusPedidoHandler(db *sql.DB) http.HandlerFunc {
 		fmt.Println("Preparando query de atualização")
 
 		// Preparar query de atualização baseada nos campos fornecidos
-		if req.Status == models.StatusEmEntrega && req.EntregadorID != nil {
-			// Se estiver iniciando entrega, atualizar entregador também
+		if req.Status == models.StatusCancelado {
+			// Quando o status é cancelado, incluir o motivo do cancelamento
 			updateQuery = `
 				UPDATE pedidos 
-				SET status = $1, entregador_id = $2, atualizado_em = NOW() 
+				SET status = $1, motivo_cancelamento = $2, atualizado_em = NOW() 
+				WHERE id = $3
+			`
+			args = []interface{}{req.Status, req.MotivoCancelamento, pedidoID}
+		} else if req.Status == models.StatusEmEntrega && req.EntregadorID != nil {
+			// Se estiver iniciando entrega, atualizar entregador também
+			updateQuery = `
+				UPDATE pedidos
+				SET status = $1, entregador_id = $2, atualizado_em = NOW()
 				WHERE id = $3
 			`
 			args = []interface{}{req.Status, *req.EntregadorID, pedidoID}
