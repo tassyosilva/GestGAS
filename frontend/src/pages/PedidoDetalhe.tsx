@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-
 import {
   Box,
   Typography,
@@ -181,6 +180,9 @@ const PedidoDetalhe: React.FC = () => {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [motivoCancelamento, setMotivoCancelamento] = useState('');
 
+  // Adicione este estado para o diálogo de confirmação de pagamento
+  const [confirmPaymentDialogOpen, setConfirmPaymentDialogOpen] = useState(false);
+
   // Estado para snackbar de feedback
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -192,7 +194,6 @@ const PedidoDetalhe: React.FC = () => {
   const buscarPedido = async () => {
     setLoading(true);
     setError(null);
-
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -200,16 +201,12 @@ const PedidoDetalhe: React.FC = () => {
         setLoading(false);
         return;
       }
-
-      const response = await axios.get<PedidoDetalhado>(
-        `${API_BASE_URL}/pedidos/${id}`,
+      const response = await axios.get<PedidoDetalhado>(`${API_BASE_URL}/pedidos/${id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
-      );
-
+        });
       setPedido(response.data);
     } catch (err: any) {
       console.error('Erro ao buscar pedido:', err);
@@ -224,17 +221,13 @@ const PedidoDetalhe: React.FC = () => {
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
-
       // Supondo que haja um endpoint para listar usuários com perfil de entregador
-      const response = await axios.get<Entregador[]>(
-        `${API_BASE_URL}/entregadores`,
+      const response = await axios.get<Entregador[]>(`${API_BASE_URL}/entregadores`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
-      );
-
+        });
       setEntregadores(response.data);
     } catch (err) {
       console.error('Erro ao buscar entregadores:', err);
@@ -260,9 +253,9 @@ const PedidoDetalhe: React.FC = () => {
       case 'em_preparo':
         return novo === 'em_entrega' || novo === 'cancelado';
       case 'em_entrega':
-        return novo === 'entregue' || novo === 'cancelado';
+        return novo === 'cancelado'; // Removido 'entregue' daqui
       case 'entregue':
-        return novo === 'finalizado';
+        return false; // Removido 'finalizado' daqui
       case 'cancelado':
       case 'finalizado':
         return false; // Estados finais, não podem ser alterados
@@ -281,7 +274,6 @@ const PedidoDetalhe: React.FC = () => {
       { value: 'finalizado', label: 'Finalizado' },
       { value: 'cancelado', label: 'Cancelado' },
     ];
-
     return todosStatus.filter(status =>
       validarTransicaoStatus(statusAtual, status.value)
     );
@@ -290,13 +282,11 @@ const PedidoDetalhe: React.FC = () => {
   // Abrir diálogo para atualizar status
   const handleAbrirDialogo = () => {
     if (!pedido) return;
-
     // Definir o novo status para o primeiro permitido por padrão
     const statusPermitidos = getStatusPermitidos(pedido.status);
     if (statusPermitidos.length > 0) {
       setNovoStatus(statusPermitidos[0].value);
     }
-
     setDialogOpen(true);
   };
 
@@ -309,9 +299,7 @@ const PedidoDetalhe: React.FC = () => {
   // Atualizar status do pedido
   const handleAtualizarStatus = async () => {
     if (!pedido || !novoStatus) return;
-
     setAtualizandoStatus(true);
-
     try {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('Não autorizado.');
@@ -350,10 +338,54 @@ const PedidoDetalhe: React.FC = () => {
       setDialogOpen(false);
     } catch (err: any) {
       console.error('Erro ao atualizar status:', err);
-
       setSnackbar({
         open: true,
         message: err.response?.data || 'Erro ao atualizar status. Tente novamente.',
+        severity: 'error',
+      });
+    } finally {
+      setAtualizandoStatus(false);
+    }
+  };
+
+  // Função para finalizar pedido após confirmação de pagamento
+  const handleFinalizarPedido = async () => {
+    if (!pedido) return;
+    setAtualizandoStatus(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Não autorizado.');
+
+      // Usar o novo endpoint específico para finalizar pedidos
+      await axios.post(
+        `${API_BASE_URL}/pedidos/finalizar`,
+        { pedido_id: parseInt(id as string) },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      // Atualizar a tela
+      await buscarPedido();
+
+      // Mostrar mensagem de sucesso
+      setSnackbar({
+        open: true,
+        message: 'Pedido finalizado com sucesso!',
+        severity: 'success',
+      });
+
+      // Fechar diálogo
+      setConfirmPaymentDialogOpen(false);
+    } catch (err: any) {
+      console.error('Erro ao finalizar pedido:', err);
+      setSnackbar({
+        open: true,
+        message: err.response?.data || 'Erro ao finalizar pedido. Tente novamente.',
         severity: 'error',
       });
     } finally {
@@ -387,7 +419,6 @@ const PedidoDetalhe: React.FC = () => {
       // Agora registrar as botijas vazias (se houver)
       // Verificar se há algum item com retorna_botija = true
       const temBotijasParaRetornar = pedido.itens.some(item => item.retorna_botija);
-
       if (temBotijasParaRetornar) {
         try {
           await axios.post(
@@ -400,7 +431,6 @@ const PedidoDetalhe: React.FC = () => {
               },
             }
           );
-
           setSnackbar({
             open: true,
             message: 'Entrega confirmada e botijas vazias registradas com sucesso!',
@@ -504,12 +534,8 @@ const PedidoDetalhe: React.FC = () => {
   if (error) {
     return (
       <Box>
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-        <Button startIcon={<ArrowBackIcon />} onClick={handleVoltar}>
-          Voltar para Pedidos
-        </Button>
+        <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+        <Button startIcon={<ArrowBackIcon />} onClick={handleVoltar}>Voltar para Pedidos</Button>
       </Box>
     );
   }
@@ -518,9 +544,7 @@ const PedidoDetalhe: React.FC = () => {
     return (
       <Box>
         <Alert severity="warning">Pedido não encontrado.</Alert>
-        <Button startIcon={<ArrowBackIcon />} onClick={handleVoltar} sx={{ mt: 2 }}>
-          Voltar para Pedidos
-        </Button>
+        <Button startIcon={<ArrowBackIcon />} onClick={handleVoltar} sx={{ mt: 2 }}>Voltar para Pedidos</Button>
       </Box>
     );
   }
@@ -529,9 +553,7 @@ const PedidoDetalhe: React.FC = () => {
     <Box>
       {/* Cabeçalho */}
       <Box display="flex" alignItems="center" mb={3}>
-        <Button startIcon={<ArrowBackIcon />} onClick={handleVoltar} sx={{ mr: 2 }}>
-          Voltar
-        </Button>
+        <Button startIcon={<ArrowBackIcon />} onClick={handleVoltar} sx={{ mr: 2 }}>Voltar</Button>
         <Typography variant="h4">
           Pedido #{pedido.id}
           <StatusChip status={pedido.status} sx={{ ml: 2 }} />
@@ -542,92 +564,51 @@ const PedidoDetalhe: React.FC = () => {
         {/* Informações gerais do pedido */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>
-              Informações do Pedido
-            </Typography>
-
+            <Typography variant="h6" gutterBottom>Informações do Pedido</Typography>
             <Grid container spacing={2}>
               <Grid item xs={6}>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Data de Criação
-                </Typography>
+                <Typography variant="subtitle2" color="text.secondary">Data de Criação</Typography>
                 <Typography variant="body1">{formatDate(pedido.criado_em)}</Typography>
               </Grid>
               <Grid item xs={6}>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Valor Total
-                </Typography>
-                <Typography variant="body1" fontWeight="bold">
-                  {formatCurrency(pedido.valor_total)}
-                </Typography>
+                <Typography variant="subtitle2" color="text.secondary">Valor Total</Typography>
+                <Typography variant="body1" fontWeight="bold">{formatCurrency(pedido.valor_total)}</Typography>
               </Grid>
               <Grid item xs={6}>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Forma de Pagamento
-                </Typography>
-                <Typography variant="body1">
-                  {formaPagamentoMap[pedido.forma_pagamento] || pedido.forma_pagamento}
-                </Typography>
+                <Typography variant="subtitle2" color="text.secondary">Forma de Pagamento</Typography>
+                <Typography variant="body1">{formaPagamentoMap[pedido.forma_pagamento] || pedido.forma_pagamento}</Typography>
               </Grid>
               <Grid item xs={6}>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Canal de Venda
-                </Typography>
-                <Typography variant="body1">
-                  {pedido.canal_origem ? (canalOrigemMap[pedido.canal_origem] || pedido.canal_origem) : '-'}
-                </Typography>
+                <Typography variant="subtitle2" color="text.secondary">Canal de Venda</Typography>
+                <Typography variant="body1">{pedido.canal_origem ? (canalOrigemMap[pedido.canal_origem] || pedido.canal_origem) : '-'}</Typography>
               </Grid>
               <Grid item xs={6}>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Data de Entrega
-                </Typography>
-                <Typography variant="body1">
-                  {pedido.data_entrega ? formatDate(pedido.data_entrega) : 'Não entregue'}
-                </Typography>
+                <Typography variant="subtitle2" color="text.secondary">Data de Entrega</Typography>
+                <Typography variant="body1">{pedido.data_entrega ? formatDate(pedido.data_entrega) : 'Não entregue'}</Typography>
               </Grid>
               <Grid item xs={6}>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Última Atualização
-                </Typography>
-                <Typography variant="body1">
-                  {formatDate(pedido.atualizado_em)}
-                </Typography>
+                <Typography variant="subtitle2" color="text.secondary">Última Atualização</Typography>
+                <Typography variant="body1">{formatDate(pedido.atualizado_em)}</Typography>
               </Grid>
-
               {pedido.observacoes && (
                 <Grid item xs={12}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Observações
-                  </Typography>
-                  <Typography variant="body1">
-                    {pedido.observacoes}
-                  </Typography>
+                  <Typography variant="subtitle2" color="text.secondary">Observações</Typography>
+                  <Typography variant="body1">{pedido.observacoes}</Typography>
                 </Grid>
               )}
             </Grid>
 
             <Divider sx={{ my: 2 }} />
 
-            <Typography variant="h6" gutterBottom>
-              Informações de Entrega
-            </Typography>
-
+            <Typography variant="h6" gutterBottom>Informações de Entrega</Typography>
             <Grid container spacing={2}>
               <Grid item xs={12}>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Endereço de Entrega
-                </Typography>
-                <Typography variant="body1">
-                  {pedido.endereco_entrega}
-                </Typography>
+                <Typography variant="subtitle2" color="text.secondary">Endereço de Entrega</Typography>
+                <Typography variant="body1">{pedido.endereco_entrega}</Typography>
               </Grid>
               <Grid item xs={12}>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Entregador
-                </Typography>
-                <Typography variant="body1">
-                  {pedido.entregador ? pedido.entregador.nome : 'Não atribuído'}
-                </Typography>
+                <Typography variant="subtitle2" color="text.secondary">Entregador</Typography>
+                <Typography variant="body1">{pedido.entregador ? pedido.entregador.nome : 'Não atribuído'}</Typography>
               </Grid>
             </Grid>
           </Paper>
@@ -636,43 +617,29 @@ const PedidoDetalhe: React.FC = () => {
         {/* Informações do cliente e responsáveis */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>
-              Informações do Cliente
-            </Typography>
+            <Typography variant="h6" gutterBottom>Informações do Cliente</Typography>
             <Grid container spacing={2}>
               <Grid item xs={12}>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Nome
-                </Typography>
+                <Typography variant="subtitle2" color="text.secondary">Nome</Typography>
                 <Typography variant="body1">{pedido.cliente.nome}</Typography>
               </Grid>
               <Grid item xs={12}>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Telefone
-                </Typography>
+                <Typography variant="subtitle2" color="text.secondary">Telefone</Typography>
                 <Typography variant="body1">{pedido.cliente.telefone}</Typography>
               </Grid>
             </Grid>
 
             <Divider sx={{ my: 2 }} />
 
-            <Typography variant="h6" gutterBottom>
-              Responsáveis
-            </Typography>
+            <Typography variant="h6" gutterBottom>Responsáveis</Typography>
             <Grid container spacing={2}>
               <Grid item xs={6}>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Atendente
-                </Typography>
+                <Typography variant="subtitle2" color="text.secondary">Atendente</Typography>
                 <Typography variant="body1">{pedido.atendente.nome}</Typography>
               </Grid>
               <Grid item xs={6}>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Entregador
-                </Typography>
-                <Typography variant="body1">
-                  {pedido.entregador ? pedido.entregador.nome : 'Não atribuído'}
-                </Typography>
+                <Typography variant="subtitle2" color="text.secondary">Entregador</Typography>
+                <Typography variant="body1">{pedido.entregador ? pedido.entregador.nome : 'Não atribuído'}</Typography>
               </Grid>
             </Grid>
 
@@ -682,18 +649,12 @@ const PedidoDetalhe: React.FC = () => {
             <Box mt={3}>
               {pedido.status === 'cancelado' ? (
                 <>
-                  <Typography variant="h6" gutterBottom color="error">
-                    Motivo do Cancelamento
-                  </Typography>
-                  <Typography variant="body1" sx={{ mt: 1 }}>
-                    {pedido.motivo_cancelamento || 'Nenhum motivo registrado'}
-                  </Typography>
+                  <Typography variant="h6" gutterBottom color="error">Motivo do Cancelamento</Typography>
+                  <Typography variant="body1" sx={{ mt: 1 }}>{pedido.motivo_cancelamento || 'Nenhum motivo registrado'}</Typography>
                 </>
               ) : (
                 <>
-                  <Typography variant="h6" gutterBottom>
-                    Ações
-                  </Typography>
+                  <Typography variant="h6" gutterBottom>Ações</Typography>
                   <Box display="flex" flexWrap="wrap" gap={1}>
                     {pedido.status !== 'cancelado' && pedido.status !== 'finalizado' && (
                       <Button
@@ -705,6 +666,7 @@ const PedidoDetalhe: React.FC = () => {
                         Atualizar Status
                       </Button>
                     )}
+
                     {pedido.status === 'em_entrega' && (
                       <Button
                         variant="contained"
@@ -715,19 +677,18 @@ const PedidoDetalhe: React.FC = () => {
                         Confirmar Entrega
                       </Button>
                     )}
+
                     {pedido.status === 'entregue' && (
                       <Button
                         variant="contained"
                         color="success"
                         startIcon={<PaymentIcon />}
-                        onClick={() => {
-                          setNovoStatus('finalizado');
-                          setDialogOpen(true);
-                        }}
+                        onClick={() => setConfirmPaymentDialogOpen(true)}
                       >
                         Finalizar Pedido
                       </Button>
                     )}
+
                     {(pedido.status === 'novo' || pedido.status === 'em_preparo' || pedido.status === 'em_entrega') && (
                       <Button
                         variant="contained"
@@ -776,12 +737,8 @@ const PedidoDetalhe: React.FC = () => {
                     </TableRow>
                   ))}
                   <TableRow>
-                    <TableCell colSpan={3} align="right" sx={{ fontWeight: 'bold' }}>
-                      Total:
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                      {formatCurrency(pedido.valor_total)}
-                    </TableCell>
+                    <TableCell colSpan={3} align="right" sx={{ fontWeight: 'bold' }}>Total:</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>{formatCurrency(pedido.valor_total)}</TableCell>
                     <TableCell />
                   </TableRow>
                 </TableBody>
@@ -804,9 +761,7 @@ const PedidoDetalhe: React.FC = () => {
             sx={{ mt: 2, mb: 2 }}
           >
             {getStatusPermitidos(pedido.status).map((status) => (
-              <MenuItem key={status.value} value={status.value}>
-                {status.label}
-              </MenuItem>
+              <MenuItem key={status.value} value={status.value}>{status.label}</MenuItem>
             ))}
           </TextField>
 
@@ -827,9 +782,7 @@ const PedidoDetalhe: React.FC = () => {
               }
             >
               {entregadores.map((entregador) => (
-                <MenuItem key={entregador.id} value={entregador.id}>
-                  {entregador.nome}
-                </MenuItem>
+                <MenuItem key={entregador.id} value={entregador.id}>{entregador.nome}</MenuItem>
               ))}
             </TextField>
           )}
@@ -854,9 +807,7 @@ const PedidoDetalhe: React.FC = () => {
       <Dialog open={cancelDialogOpen} onClose={() => setCancelDialogOpen(false)}>
         <DialogTitle>Cancelar Pedido</DialogTitle>
         <DialogContent>
-          <Typography variant="body1" gutterBottom>
-            Informe o motivo do cancelamento:
-          </Typography>
+          <Typography variant="body1" gutterBottom>Informe o motivo do cancelamento:</Typography>
           <TextField
             autoFocus
             margin="dense"
@@ -881,6 +832,32 @@ const PedidoDetalhe: React.FC = () => {
             disabled={atualizandoStatus || !motivoCancelamento.trim()}
           >
             {atualizandoStatus ? <CircularProgress size={24} /> : 'Confirmar Cancelamento'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo para confirmar pagamento e finalizar pedido */}
+      <Dialog
+        open={confirmPaymentDialogOpen}
+        onClose={() => setConfirmPaymentDialogOpen(false)}>
+        <DialogTitle>Confirmar Finalização</DialogTitle>
+        <DialogContent>
+          <Typography>
+            O valor total deste pedido foi recebido?
+          </Typography>
+          <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 1 }}>
+            Total: {pedido ? formatCurrency(pedido.valor_total) : ''}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmPaymentDialogOpen(false)}>Não</Button>
+          <Button
+            onClick={handleFinalizarPedido}
+            color="primary"
+            variant="contained"
+            disabled={atualizandoStatus}
+          >
+            {atualizandoStatus ? <CircularProgress size={24} /> : 'Sim'}
           </Button>
         </DialogActions>
       </Dialog>
